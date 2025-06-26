@@ -227,6 +227,11 @@ namespace love
         return luax_checktype<T>(L, index, T::type);
     }
 
+    // Forward declaration for Wii U debug logging
+#ifdef __WIIU__
+    extern "C" void wiiu_debug_log_exception(const char* msg);
+#endif
+
     template<typename T>
     int luax_catchexcept(lua_State* L, const T& function)
     {
@@ -240,6 +245,9 @@ namespace love
         {
             shouldError = true;
             lua_pushstring(L, e.what());
+#ifdef __WIIU__
+            wiiu_debug_log_exception(e.what());
+#endif
         }
 
         if (shouldError)

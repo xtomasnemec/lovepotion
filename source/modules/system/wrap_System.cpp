@@ -48,8 +48,12 @@ int Wrap_System::vibrate(lua_State*)
     return 0;
 }
 
-int Wrap_System::openURL(lua_State*)
+int Wrap_System::openURL(lua_State* L)
 {
+    const char* url = luaL_checkstring(L, 1);
+    // On console platforms, this is typically not implemented
+    // but we'll accept the parameter for compatibility
+    
     return 0;
 }
 

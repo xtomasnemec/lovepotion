@@ -121,6 +121,8 @@ namespace Wrap_Graphics
 
     int newImage(lua_State* L);
 
+    int newVideo(lua_State* L);
+
     int newTextureView(lua_State* L);
 
     int newArrayTexture(lua_State* L);
@@ -130,6 +132,8 @@ namespace Wrap_Graphics
     int setFont(lua_State* L);
 
     int getFont(lua_State* L);
+
+    int setNewFont(lua_State* L);
 
     int polygon(lua_State* L);
 

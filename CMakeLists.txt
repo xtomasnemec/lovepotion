@@ -173,6 +173,12 @@ if (NINTENDO_WIIU)
         source/modules/font/freetype/Font.cpp
         source/modules/font/freetype/TrueTypeRasterizer.cpp
         source/modules/graphics/freetype/Font.cpp
+        # Enhanced shader support for Wii U
+        source/modules/graphics/opengl/ShaderCompiler.cpp
+        source/modules/graphics/opengl/ShaderProgram.cpp
+        # Enhanced input handling for GamePad and Pro Controller
+        source/modules/input/wiiu/GamepadInput.cpp
+        source/modules/input/wiiu/ProControllerInput.cpp
     )
 
     add_library(ddsparse
@@ -184,7 +190,10 @@ if (NINTENDO_WIIU)
     find_package(Freetype REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE Freetype::Freetype bz2 png turbojpeg ddsparse)
 
-    execute_process(COMMAND patch -d ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket -N -i ${PROJECT_SOURCE_DIR}/platform/cafe/libraries/luasocket.patch)
+    # Apply luasocket patch only if luasocket will be built (not on Wii U)
+    if(NOT NINTENDO_WIIU)
+        execute_process(COMMAND patch -d ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket -N -i ${PROJECT_SOURCE_DIR}/platform/cafe/libraries/luasocket.patch)
+    endif()
 endif()
 
 # add_custom_target(test
@@ -221,46 +230,49 @@ add_library(lua53
 )
 target_link_libraries(lua53 PRIVATE PkgConfig::lua51)
 
-add_library(luasocket
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/luasocket.hpp
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/luasocket.cpp
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/auxiliar.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/auxiliar.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/buffer.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/buffer.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/compat.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/compat.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/except.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/except.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/inet.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/inet.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/io.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/io.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/ltn12.lua
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/luasocket.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/luasocket.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/mime.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/mime.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/options.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/options.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/pierror.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/select.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/select.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/smtp.lua
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/socket.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/tcp.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/tcp.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/timeout.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/timeout.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/udp.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/udp.h
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/usocket.c
-     ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/usocket.h
-)
-target_link_libraries(luasocket PRIVATE PkgConfig::lua51)
-target_include_directories(luasocket PRIVATE
-    libraries/lua53
-)
+# Disable luasocket for Wii U as it requires POSIX networking APIs not available on the platform
+if(NOT NINTENDO_WIIU)
+    add_library(luasocket
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/luasocket.hpp
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/luasocket.cpp
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/auxiliar.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/auxiliar.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/buffer.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/buffer.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/compat.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/compat.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/except.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/except.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/inet.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/inet.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/io.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/io.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/ltn12.lua
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/luasocket.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/luasocket.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/mime.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/mime.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/options.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/options.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/pierror.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/select.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/select.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/smtp.lua
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/socket.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/tcp.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/tcp.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/timeout.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/timeout.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/udp.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/udp.h
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/usocket.c
+         ${CMAKE_CURRENT_BINARY_DIR}/luasocket/libluasocket/usocket.h
+    )
+    target_link_libraries(luasocket PRIVATE PkgConfig::lua51)
+    target_include_directories(luasocket PRIVATE
+        libraries/lua53
+    )
+endif()
 
 FetchContent_Declare(lua-https
     GIT_REPOSITORY https://github.com/love2d/lua-https
@@ -372,9 +384,16 @@ else()
 endif()
 
 # link everything else
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${APP_LIBS} z luabit lua53 ogg modplug lua-https luasocket
-)
+if(NINTENDO_WIIU)
+    # Exclude luasocket for Wii U
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        ${APP_LIBS} z luabit lua53 ogg modplug lua-https
+    )
+else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        ${APP_LIBS} z luabit lua53 ogg modplug lua-https luasocket
+    )
+endif()
 
 
 
@@ -383,12 +402,16 @@ include_directories(
     libraries/dr
     libraries/lua53
     libraries/noise1234
-    libraries/luasocket
     libraries/physfs
     libraries/wuff
     libraries/utf8
     libraries/ddsparse
 )
+
+# Add luasocket include directory only for non-Wii U platforms
+if(NOT NINTENDO_WIIU)
+    include_directories(libraries/luasocket)
+endif()
 
 # find source -type f -name \*.cpp | clip
 target_sources(${PROJECT_NAME} PRIVATE
@@ -515,4 +538,25 @@ source/modules/sound/lullaby/ModPlugDecoder.cpp
 source/modules/sound/lullaby/MP3Decoder.cpp
 source/modules/sound/lullaby/VorbisDecoder.cpp
 source/modules/sound/lullaby/WaveDecoder.cpp
+)
+
+# Add mouse module for non-Wii U platforms only (Wii U doesn't support mouse)
+if(NOT NINTENDO_WIIU)
+    target_sources(${PROJECT_NAME} PRIVATE
+        source/modules/mouse/Mouse.cpp
+        source/modules/mouse/wrap_Mouse.cpp
+    )
+endif()
+
+# Add video implementation for non-Wii U platforms
+# Wii U uses platform-specific Video implementation in platform/cafe/
+if(NOT NINTENDO_WIIU)
+    target_sources(${PROJECT_NAME} PRIVATE
+        source/modules/video/Video.cpp
+    )
+endif()
+
+# Add video wrap file for all platforms (contains Lua binding functions)
+target_sources(${PROJECT_NAME} PRIVATE
+    source/modules/video/wrap_Video.cpp
 )

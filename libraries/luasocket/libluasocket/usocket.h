@@ -8,6 +8,7 @@
 /*=========================================================================*\
 * BSD include files
 \*=========================================================================*/
+#ifndef __WIIU__
 /* error codes */
 #include <errno.h>
 /* close function */
@@ -30,6 +31,7 @@
 /* TCP options (nagle algorithm disable) */
 #include <netinet/tcp.h>
 #include <net/if.h>
+#endif // __WIIU__
 
 #ifndef SO_REUSEPORT
 #define SO_REUSEPORT SO_REUSEADDR

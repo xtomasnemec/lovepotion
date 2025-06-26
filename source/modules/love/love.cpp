@@ -1,7 +1,9 @@
 #include "common/luax.hpp"
 #include "common/version.hpp"
 
+#ifndef __WIIU__
 #include <luasocket.hpp>
+#endif
 
 #include "modules/love/love.hpp"
 
@@ -279,7 +281,9 @@ int love_initialize(lua_State* L)
     luax_addcompatibilityalias(L, "string", "gmatch", "gfind");
 #endif
 
+#ifndef __WIIU__
     love::luasocket::preload(L);
+#endif
     love::luax_preload(L, luaopen_luautf8, "utf8");
     love::luax_preload(L, luaopen_https, "https");
 

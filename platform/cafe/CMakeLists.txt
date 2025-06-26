@@ -21,6 +21,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # find source -type f | grep "\.cpp$" | clip
 target_sources(${PROJECT_NAME} PRIVATE
 source/boot.cpp
+source/DebugLogger.cpp
 source/common/screen.cpp
 source/driver/audio/AudioBuffer.cpp
 source/driver/audio/DigitalSound.cpp
@@ -38,7 +39,9 @@ source/modules/joystick/vpad/Joystick.cpp
 source/modules/joystick/kpad/Joystick.cpp
 source/modules/joystick/JoystickModule.cpp
 source/modules/keyboard/Keyboard.cpp
+source/modules/mouse/Mouse.cpp
 source/modules/system/System.cpp
 source/modules/timer/Timer.cpp
+source/modules/video/Video.cpp
 source/modules/window/Window.cpp
 )

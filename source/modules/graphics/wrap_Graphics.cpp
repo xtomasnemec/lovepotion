@@ -9,6 +9,7 @@
 #include "modules/graphics/wrap_SpriteBatch.hpp"
 #include "modules/graphics/wrap_TextBatch.hpp"
 #include "modules/graphics/wrap_Texture.hpp"
+#include "modules/video/wrap_Video.hpp"
 
 #include "modules/image/Image.hpp"
 #include "modules/image/ImageData.hpp"
@@ -1032,6 +1033,29 @@ int Wrap_Graphics::newImage(lua_State* L)
     return newTexture(L);
 }
 
+int Wrap_Graphics::newVideo(lua_State* L)
+{
+    Video* video = nullptr;
+
+    if (lua_type(L, 1) == LUA_TSTRING)
+    {
+        const char* filename = luaL_checkstring(L, 1);
+        luax_catchexcept(L, [&]() { 
+            video = new Video();
+            video->setSource(filename);
+        });
+    }
+    else
+    {
+        luax_catchexcept(L, [&]() { video = new Video(); });
+    }
+
+    luax_pushtype(L, video);
+    video->release();
+
+    return 1;
+}
+
 int Wrap_Graphics::newArrayTexture(lua_State* L)
 {
     luax_checkgraphicscreated(L);
@@ -1171,6 +1195,18 @@ int Wrap_Graphics::getFont(lua_State* L)
     luax_pushtype(L, font);
 
     return 1;
+}
+
+int Wrap_Graphics::setNewFont(lua_State* L)
+{
+    // Create a new font and set it as current
+    int ret = newFont(L);  // This pushes the new font onto the stack
+    
+    // Get the font from the stack
+    auto* font = luax_checktype<FontBase>(L, -1);
+    instance()->setFont(font);
+    
+    return ret;  // Return the font
 }
 
 static BufferDataUsage luax_optdatausage(lua_State* L, int idx, BufferDataUsage def)
@@ -1952,6 +1988,7 @@ static constexpr luaL_Reg functions[] =
     { "newTexture",             Wrap_Graphics::newTexture            },
     { "newQuad",                Wrap_Graphics::newQuad               },
     { "newImage",               Wrap_Graphics::newImage              },
+    { "newVideo",               Wrap_Graphics::newVideo              },
     // { "newArrayTexture",        Wrap_Graphics::newArrayTexture       },
 
     { "newTextBatch",           Wrap_Graphics::newTextBatch          },
@@ -1960,6 +1997,7 @@ static constexpr luaL_Reg functions[] =
     { "newFont",                Wrap_Graphics::newFont               },
     { "setFont",                Wrap_Graphics::setFont               },
     { "getFont",                Wrap_Graphics::getFont               },
+    { "setNewFont",             Wrap_Graphics::setNewFont            },
     { "print",                  Wrap_Graphics::print                 },
     { "printf",                 Wrap_Graphics::printf                },
 
@@ -1981,7 +2019,8 @@ static constexpr lua_CFunction types[] =
     love::open_quad,
     love::open_font,
     love::open_textbatch,
-    love::open_spritebatch
+    love::open_spritebatch,
+    love::open_video
 };
 // clang-format on
 

@@ -4,6 +4,10 @@
 #include "boot.hpp"
 #include "modules/love/love.hpp"
 
+#ifdef __WIIU__
+#include "DebugLogger.hpp"
+#endif
+
 #include <filesystem>
 #include <vector>
 
@@ -24,6 +28,12 @@ enum DoneAction
 
 static DoneAction runLove(char** argv, int argc, int& result, love::Variant& restartValue)
 {
+#ifdef __WIIU__
+    love::DebugLogger::log("runLove() called with argc=%d", argc);
+    for (int i = 0; i < argc; i++)
+        love::DebugLogger::log("argv[%d] = %s", i, argv[i]);
+#endif
+
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
     luaopen_bit(L);
@@ -113,6 +123,18 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
             restartValue = love::luax_checkvariant(L, index + 1, false);
     }
 
+#ifdef __WIIU__
+    // Check if there are any Lua errors left on the stack
+    if (lua_gettop(L) > 0 && lua_type(L, -1) == LUA_TSTRING)
+    {
+        const char* errorMsg = lua_tostring(L, -1);
+        if (errorMsg)
+        {
+            love::DebugLogger::log("Final Lua error on stack: %s", errorMsg);
+        }
+    }
+#endif
+
     lua_close(L);
 
     return action;
@@ -120,22 +142,95 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
 
 int main(int argc, char** argv)
 {
-    if (love::preInit() != 0)
+#ifdef __WIIU__
+    love::DebugLogger::log("main() starting with argc=%d", argc);
+    for (int i = 0; i < argc; i++)
+        love::DebugLogger::log("argv[%d] = %s", i, argv[i]);
+#endif
+
+    try
     {
+        if (love::preInit() != 0)
+        {
+#ifdef __WIIU__
+            love::DebugLogger::log("ERROR: preInit() failed");
+#endif
+            love::onExit();
+            return 0;
+        }
+
+        int result        = 0;
+        DoneAction action = DONE_QUIT;
+        love::Variant restartValue;
+
+#ifdef __WIIU__
+        love::DebugLogger::log("Starting main loop");
+#endif
+
+        do
+        {
+            try
+            {
+                action = runLove(argv, argc, result, restartValue);
+#ifdef __WIIU__
+                love::DebugLogger::log("runLove completed with action=%d, result=%d", (int)action, result);
+#endif
+            }
+            catch (const love::Exception& e)
+            {
+#ifdef __WIIU__
+                love::DebugLogger::log("LOVE Exception caught in main loop: %s", e.what());
+#endif
+                result = 1;
+                action = DONE_QUIT;
+            }
+            catch (const std::exception& e)
+            {
+#ifdef __WIIU__
+                love::DebugLogger::log("C++ Exception caught in main loop: %s", e.what());
+#endif
+                result = 1;
+                action = DONE_QUIT;
+            }
+            catch (...)
+            {
+#ifdef __WIIU__
+                love::DebugLogger::log("Unknown exception caught in main loop");
+#endif
+                result = 1;
+                action = DONE_QUIT;
+            }
+        } while (action != DONE_QUIT);
+
+#ifdef __WIIU__
+        love::DebugLogger::log("Main loop finished, calling onExit()");
+#endif
         love::onExit();
-        return 0;
+
+        return result;
     }
-
-    int result        = 0;
-    DoneAction action = DONE_QUIT;
-    love::Variant restartValue;
-
-    do
+    catch (const love::Exception& e)
     {
-        action = runLove(argv, argc, result, restartValue);
-    } while (action != DONE_QUIT);
-
-    love::onExit();
-
-    return result;
+#ifdef __WIIU__
+        love::DebugLogger::log("FATAL LOVE Exception in main(): %s", e.what());
+#endif
+        love::onExit();
+        return 1;
+    }
+    catch (const std::exception& e)
+    {
+#ifdef __WIIU__
+        love::DebugLogger::log("FATAL C++ Exception in main(): %s", e.what());
+#endif
+        love::onExit();
+        return 1;
+    }
+    catch (...)
+    {
+#ifdef __WIIU__
+        love::DebugLogger::log("FATAL Unknown exception in main()");
+#endif
+        love::onExit();
+        return 1;
+    }
 }

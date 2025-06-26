@@ -1,0 +1,56 @@
+# Dockerfile 
+FROM devkitpro/devkitppc:latest
+
+# Build type argument (Debug or Release)
+ARG BUILD_TYPE=Debug
+
+# Install dos2unix using apt-get (not dkp-pacman)
+RUN apt-get update && apt-get install -y dos2unix
+
+RUN dkp-pacman -S --needed --noconfirm \
+    wut-tools \
+    wut \
+    ppc-zlib \
+    ppc-libpng \
+    ppc-libjpeg-turbo \
+    ppc-freetype \
+    ppc-libogg \
+    ppc-libvorbis \
+    ppc-libvorbisidec \
+    ppc-bzip2
+
+WORKDIR /project
+
+# Copy project
+COPY . .
+
+# Convert line endings and skip luasocket patches (luasocket is disabled for Wii U)
+RUN find /project -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs dos2unix || true
+
+# Build
+RUN mkdir -p build && cd build && \
+    echo "=== Starting CMake configuration ===" && \
+    cmake .. -DNINTENDO_WIIU=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/WiiU.cmake && \
+    echo "=== CMake configuration completed ===" && \
+    echo "=== Starting make build ===" && \
+    make -j$(nproc) || (echo "=== Make failed, showing build directory contents ===" && ls -la && exit 1) && \
+    echo "=== Make build completed ===" && \
+    echo "=== BUILD OUTPUT DEBUG ===" && \
+    ls -la && \
+    echo "=== FIND ALL RPX/WUHB/ELF FILES IN PROJECT ===" && \
+    find /project -name "*.rpx" -o -name "*.wuhb" -o -name "*.elf" | head -20 && \
+    echo "=== FIND ALL EXECUTABLE FILES ===" && \
+    find /project -name "*lovepotion*" -type f | head -20 && \
+    echo "=== COPYING FILES ===" && \
+    mkdir -p /output && \
+    find /project -name "*.rpx" -exec cp -v {} /output/ \; && \
+    find /project -name "*.wuhb" -exec cp -v {} /output/ \; && \
+    find /project -name "*.elf" -exec cp -v {} /output/ \; && \
+    find /project -name "*lovepotion*" -type f -executable -exec cp -v {} /output/ \; 2>/dev/null || true && \
+    echo "=== FINAL OUTPUT DIRECTORY ===" && \
+    ls -la /output/ && \
+    echo "=== FINAL BUILD DIRECTORY ===" && \
+    ls -la /project/build/
+
+# Export output directory
+VOLUME ["/output"]
