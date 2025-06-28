@@ -402,6 +402,24 @@ int love_print(lua_State* L)
     }
 
     std::printf("[LOVE] %s\r\n", result.c_str());
+    
+#ifdef __WIIU__
+    // Also log to file for debugging
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile == nullptr) {
+        logFile = fopen("/vol/external01/simple_debug.log", "a");
+    }
+    if (logFile == nullptr) {
+        logFile = fopen("simple_debug.log", "a");
+    }
+    
+    if (logFile != nullptr) {
+        fprintf(logFile, "[LOVE] %s\n", result.c_str());
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+    
     return 0;
 }
 

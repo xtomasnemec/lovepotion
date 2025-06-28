@@ -4,6 +4,7 @@
 #include "modules/keyboard/Keyboard.hpp"
 
 #include "utility/guid.hpp"
+#include "DebugLogger.hpp"
 
 #include <nn/swkbd.h>
 
@@ -49,15 +50,39 @@ namespace love
 
     void EventQueue::pollInternal()
     {
+        DebugLogger::log("EventQueue::pollInternal() called");
+        
         if (!JOYSTICK_MODULE())
+        {
+            DebugLogger::log("EventQueue: No joystick module available");
             return;
+        }
 
-        for (int index = 0; index < JOYSTICK_MODULE()->getJoystickCount(); index++)
+        int joystickCount = JOYSTICK_MODULE()->getJoystickCount();
+        DebugLogger::log("EventQueue: Joystick count = %d", joystickCount);
+        
+        if (joystickCount == 0)
+        {
+            static bool warned = false;
+            if (!warned)
+            {
+                DebugLogger::log("EventQueue: No joysticks available for polling");
+                warned = true;
+            }
+            return;
+        }
+
+        for (int index = 0; index < joystickCount; index++)
         {
             auto* joystick = JOYSTICK_MODULE()->getJoystick(index);
 
             if (joystick == nullptr)
+            {
+                DebugLogger::log("EventQueue: Joystick %d is null", index);
                 continue;
+            }
+
+            DebugLogger::log("EventQueue: Polling joystick %d (type=%d)", index, joystick->getGamepadType());
 
             if (joystick->getGamepadType() == GAMEPAD_TYPE_NINTENDO_WII_U_GAMEPAD)
                 this->gamepad = (vpad::Joystick*)joystick;
@@ -70,10 +95,16 @@ namespace love
                 std::vector<JoystickBase::GamepadButton> inputs = { JoystickBase::GamepadButton(input) };
 
                 if (joystick->isDown(inputs))
+                {
+                    DebugLogger::log("EventQueue: Button %d pressed on joystick %d", input, which);
                     this->sendGamepadButtonEvent(SUBTYPE_GAMEPADDOWN, which, input);
+                }
 
                 if (joystick->isUp(inputs))
+                {
+                    DebugLogger::log("EventQueue: Button %d released on joystick %d", input, which);
                     this->sendGamepadButtonEvent(SUBTYPE_GAMEPADUP, which, input);
+                }
             }
 
             for (int input = 0; input < JoystickBase::GAMEPAD_AXIS_MAX_ENUM; input++)
@@ -81,6 +112,7 @@ namespace love
                 if (joystick->isAxisChanged(JoystickBase::GamepadAxis(input)))
                 {
                     float value = joystick->getAxis(JoystickBase::GamepadAxis(input));
+                    DebugLogger::log("EventQueue: Axis %d changed to %f on joystick %d", input, value, which);
                     this->sendGamepadAxisEvent(which, input, value);
                 }
             }

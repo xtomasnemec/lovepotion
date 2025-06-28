@@ -98,8 +98,14 @@ namespace love
         bool pushTransform = true;
     };
 
+#ifdef __WIIU__
+    // Modest buffers for Wii U - enough for startup but not excessive
+    constexpr size_t INIT_VERTEX_BUFFER_SIZE = sizeof(Vertex) * 4096;  // 128KB - back to reasonable size
+    constexpr size_t INIT_INDEX_BUFFER_SIZE  = sizeof(uint16_t) * 32768; // 64KB - enough for startup
+#else
     constexpr size_t INIT_VERTEX_BUFFER_SIZE = sizeof(Vertex) * 4096 * 1;
     constexpr size_t INIT_INDEX_BUFFER_SIZE  = sizeof(uint16_t) * LOVE_UINT16_MAX * 1;
+#endif
 
     StreamBuffer<Vertex>* newVertexBuffer(size_t size);
     StreamBuffer<uint16_t>* newIndexBuffer(size_t size);

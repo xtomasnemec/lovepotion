@@ -3,16 +3,16 @@
 
 using namespace love;
 
-#define instance() Module::getInstance<JoystickModule>(Module::M_JOYSTICK)
+#define MODULE_INSTANCE() Module::getInstance<JoystickModule>(Module::M_JOYSTICK)
 
 int Wrap_JoystickModule::getJoysticks(lua_State* L)
 {
-    int count = instance()->getJoystickCount();
+    int count = MODULE_INSTANCE()->getJoystickCount();
     lua_createtable(L, count, 0);
 
     for (int index = 0; index < count; index++)
     {
-        auto* joystick = instance()->getJoystick(index);
+        auto* joystick = MODULE_INSTANCE()->getJoystick(index);
         luax_pushtype(L, joystick);
         lua_rawseti(L, -2, index + 1);
     }
@@ -23,7 +23,7 @@ int Wrap_JoystickModule::getJoysticks(lua_State* L)
 int Wrap_JoystickModule::getIndex(lua_State* L)
 {
     auto* joystick = luax_checkjoystick(L, 1);
-    int index      = instance()->getIndex(joystick);
+    int index      = MODULE_INSTANCE()->getIndex(joystick);
 
     if (index >= 0)
         lua_pushinteger(L, index);
@@ -35,7 +35,7 @@ int Wrap_JoystickModule::getIndex(lua_State* L)
 
 int Wrap_JoystickModule::getJoystickCount(lua_State* L)
 {
-    lua_pushinteger(L, instance()->getJoystickCount());
+    lua_pushinteger(L, MODULE_INSTANCE()->getJoystickCount());
 
     return 1;
 }
@@ -56,15 +56,15 @@ static constexpr lua_CFunction types[] =
 
 int Wrap_JoystickModule::open(lua_State* L)
 {
-    auto* instance = instance();
+    auto* module_instance = Module::getInstance<JoystickModule>(Module::M_JOYSTICK);
 
-    if (instance == nullptr)
-        luax_catchexcept(L, [&] { instance = new JoystickModule(); });
+    if (module_instance == nullptr)
+        luax_catchexcept(L, [&] { module_instance = new JoystickModule(); });
     else
-        instance->retain();
+        module_instance->retain();
 
     WrappedModule module {};
-    module.instance  = instance;
+    module.instance  = module_instance;
     module.name      = "joystick";
     module.type      = &Module::type;
     module.functions = functions;

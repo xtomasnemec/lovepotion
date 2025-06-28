@@ -7,6 +7,13 @@
 #include <gx2r/buffer.h>
 #include <gx2r/draw.h>
 
+#ifdef __WIIU__
+#include <coreinit/memheap.h>
+#include <coreinit/memory.h>
+#include <cstdio>
+#include "debug_log.h"
+#endif
+
 namespace love
 {
     static GX2RResourceFlags getBufferUsage(BufferUsage usage)
@@ -25,12 +32,50 @@ namespace love
         {
             const auto flags = getBufferUsage(mode);
 
+#ifdef __WIIU__
+            // Wii U memory limit: Cap buffer size to prevent memory allocation failures
+            const size_t WII_U_MAX_BUFFER_SIZE = 256 * 1024 * 1024; // 256MB limit
+            const size_t requestedSize = size * sizeof(T);
+            
+            char debugMsg[256];
+            sprintf(debugMsg, "StreamBuffer constructor: mode=%d, requested elemCount=%zu, elemSize=%zu, totalSize=%zu bytes", 
+                    (int)mode, size, sizeof(T), requestedSize);
+            wiiu_debug_log_exception(debugMsg);
+            
+            if (requestedSize > WII_U_MAX_BUFFER_SIZE)
+            {
+                sprintf(debugMsg, "StreamBuffer size capped: requested %zu bytes, using %zu bytes (256MB limit)", 
+                        requestedSize, WII_U_MAX_BUFFER_SIZE);
+                wiiu_debug_log_exception(debugMsg);
+                
+                size = WII_U_MAX_BUFFER_SIZE / sizeof(T);
+            }
+#endif
+
             this->buffer.elemCount = size;
             this->buffer.elemSize  = sizeof(T);
             this->buffer.flags     = flags | BUFFER_CREATE_FLAGS;
 
+#ifdef __WIIU__
+            // Debug logging for buffer creation
+            sprintf(debugMsg, "Creating StreamBuffer: elemCount=%zu, elemSize=%zu, totalSize=%zu bytes, flags=0x%x", 
+                    size, sizeof(T), size * sizeof(T), this->buffer.flags);
+            wiiu_debug_log_exception(debugMsg);
+#endif
+
             if (!GX2RCreateBuffer(&this->buffer))
+            {
+#ifdef __WIIU__
+                sprintf(debugMsg, "GX2RCreateBuffer failed for buffer size %zu bytes", size * sizeof(T));
+                wiiu_debug_log_exception(debugMsg);
+#endif
                 throw love::Exception("Failed to create StreamBuffer");
+            }
+
+#ifdef __WIIU__
+            sprintf(debugMsg, "StreamBuffer created successfully: %zu bytes", size * sizeof(T));
+            wiiu_debug_log_exception(debugMsg);
+#endif
         }
 
         StreamBuffer(StreamBuffer&&) = delete;

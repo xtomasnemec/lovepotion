@@ -38,7 +38,7 @@ namespace love
     uint32_t Console::mainCoreId = 0;
     bool Console::mainCoreIdSet  = false;
 
-    static constexpr const char* DEFAULT_PATH = "fs:/vol/external01/lovepotion.wuhb";
+    static constexpr const char* DEFAULT_PATH = "fs:/vol/external01/balatro.wuhb";
 
     std::string getApplicationPath(const std::string& argv0)
     {
@@ -68,7 +68,7 @@ namespace love
 
     int preInit()
     {
-        // Initialize debug logger first
+        // Initialize debug logger (safe to call multiple times)
         DebugLogger::init();
         DebugLogger::log("preInit() called");
 
@@ -131,10 +131,42 @@ namespace love
 
     bool mainLoop(lua_State* L, int argc, int* nres)
     {
+        DebugLogger::log("mainLoop() called with argc=%d, shutdown=%s", argc, s_Shutdown ? "true" : "false");
+        
+#ifdef __WIIU__
+        // Additional simple logging for debugging freeze
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "mainLoop() entered, about to check shutdown\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
         if (!s_Shutdown)
         {
+#ifdef __WIIU__
+            FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile2) {
+                fprintf(logFile2, "Not shutdown, about to call luax_resume()\n");
+                fflush(logFile2);
+                fclose(logFile2);
+            }
+#endif
+            DebugLogger::log("About to call luax_resume()...");
             const auto resumeResult = luax_resume(L, argc, nres);
+#ifdef __WIIU__
+            FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile3) {
+                fprintf(logFile3, "luax_resume() returned, result=%d\n", resumeResult);
+                fflush(logFile3);
+                fclose(logFile3);
+            }
+#endif
+            DebugLogger::log("luax_resume() returned %d", resumeResult);
+            
             const auto yielding = (resumeResult == LUA_YIELD);
+            DebugLogger::log("yielding = %s", yielding ? "true" : "false");
 
             if (!yielding)
             {
@@ -177,12 +209,15 @@ namespace love
                     }
                 }
                 
+                DebugLogger::log("mainLoop() error handling complete, calling SYSLaunchMenu()");
                 SYSLaunchMenu();
                 s_Shutdown = true;
             }
         }
 
-        return isRunning();
+        bool running = isRunning();
+        DebugLogger::log("mainLoop() returning %s", running ? "true" : "false");
+        return running;
     }
 
     void onExit()

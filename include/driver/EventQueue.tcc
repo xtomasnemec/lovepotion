@@ -5,6 +5,10 @@
 
 #include "modules/joystick/Joystick.tcc"
 
+#if defined(__WIIU__)
+#include "DebugLogger.hpp"
+#endif
+
 #include <list>
 #include <memory>
 #include <vector>
@@ -20,21 +24,69 @@ namespace love
 
         bool poll(LOVE_Event* event)
         {
+            static int pollCount = 0;
+            pollCount++;
+            
             if (!this->events.empty())
             {
+                if (pollCount % 60 == 1) // Log every 60 calls
+                {
+#if defined(__WIIU__)
+                    DebugLogger::log("EventQueue::poll #%d: returning cached event (type=%d)", pollCount, this->events.front().type);
+#else
+                    printf("[DEBUG] EventQueue::poll #%d: returning cached event (type=%d)\n", pollCount, this->events.front().type);
+#endif
+                }
                 *event = this->events.front();
                 this->events.pop_front();
                 return true;
             }
 
             if (this->hysteresis)
+            {
+                if (pollCount % 60 == 1)
+                {
+#if defined(__WIIU__)
+                    DebugLogger::log("EventQueue::poll #%d: hysteresis false", pollCount);
+#else
+                    printf("[DEBUG] EventQueue::poll #%d: hysteresis false\n", pollCount);
+#endif
+                }
                 return this->hysteresis = false;
+            }
 
+            if (pollCount % 60 == 1)
+            {
+#if defined(__WIIU__)
+                DebugLogger::log("EventQueue::poll #%d: calling pollInternal()", pollCount);
+#else
+                printf("[DEBUG] EventQueue::poll #%d: calling pollInternal()\n", pollCount);
+#endif
+            }
+            
             this->pollInternal();
 
             if (this->events.empty())
+            {
+                if (pollCount % 60 == 1)
+                {
+#if defined(__WIIU__)
+                    DebugLogger::log("EventQueue::poll #%d: no events after pollInternal", pollCount);
+#else
+                    printf("[DEBUG] EventQueue::poll #%d: no events after pollInternal\n", pollCount);
+#endif
+                }
                 return false;
+            }
 
+            if (pollCount % 60 == 1)
+            {
+#if defined(__WIIU__)
+                DebugLogger::log("EventQueue::poll #%d: returning new event (type=%d)", pollCount, this->events.front().type);
+#else
+                printf("[DEBUG] EventQueue::poll #%d: returning new event (type=%d)\n", pollCount, this->events.front().type);
+#endif
+            }
             *event = this->events.front();
             this->events.pop_front();
 

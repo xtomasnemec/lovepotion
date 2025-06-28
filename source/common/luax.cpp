@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <cstdio>
 
 #include <algorithm>
 
@@ -136,15 +137,80 @@ namespace love
 
     int luax_resume(lua_State* L, int argc, int* nres)
     {
+#ifdef __WIIU__
+        static int resumeCallCount = 0;
+        resumeCallCount++;
+        
+        printf("[LUAX_RESUME] Starting lua_resume() call #%d with argc=%d\n", resumeCallCount, argc);
+        fflush(stdout);
+        
+        // Also log to file for debugging
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "luax_resume() call #%d with argc=%d\n", resumeCallCount, argc);
+            fflush(logFile);
+            fclose(logFile);
+        }
+        
+        // Log current Lua stack state
+        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3) {
+            fprintf(logFile3, "Lua stack top: %d\n", lua_gettop(L));
+            fflush(logFile3);
+            fclose(logFile3);
+        }
+        
+        printf("[LUAX_RESUME] About to call lua_resume...\n");
+        fflush(stdout);
+        
+        // Add file logging too  
+        FILE* logFileA = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFileA) {
+            fprintf(logFileA, "About to call lua_resume()...\n");
+            fflush(logFileA);
+            fclose(logFileA);
+        }
+#endif
+
 #if LUA_VERSION_NUM >= 504
-        return lua_resume(L, nullptr, argc, nres);
+        int result = lua_resume(L, nullptr, argc, nres);
 #elif LUA_VERSION_NUM >= 502
         LOVE_UNUSED(nres);
-        return lua_resume(L, nullptr, argc);
+        int result = lua_resume(L, nullptr, argc);
 #else
         LOVE_UNUSED(nres);
-        return lua_resume(L, argc);
+        int result = lua_resume(L, argc);
 #endif
+
+#ifdef __WIIU__
+        // Log immediately after lua_resume returns
+        printf("[LUAX_RESUME] lua_resume() call #%d returned %d", resumeCallCount, result);
+        if (result == LUA_YIELD) {
+            printf(" (LUA_YIELD - coroutine yielded)\n");
+        } else if (result == 0) {
+            printf(" (LUA_OK - success)\n");
+        } else {
+            printf(" (ERROR - check for Lua error)\n");
+        }
+        fflush(stdout);
+        
+        // Also log to file for debugging with more detail
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "lua_resume() call #%d returned %d", resumeCallCount, result);
+            if (result == LUA_YIELD) {
+                fprintf(logFile2, " (LUA_YIELD - coroutine yielded)\n");
+            } else if (result == 0) {
+                fprintf(logFile2, " (LUA_OK - success)\n");
+            } else {
+                fprintf(logFile2, " (ERROR - check for Lua error)\n");
+            }
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
+
+        return result;
     }
 
     int luax_register_searcher(lua_State* L, lua_CFunction function, int position)

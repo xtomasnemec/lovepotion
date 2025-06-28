@@ -3,7 +3,6 @@
 set BUILD_TYPE=Debug
 if not "%1"=="" set BUILD_TYPE=%1
 
-winget install -e --id Docker.DockerDesktop
 cls
 
 echo Building LOVE Potion for Wii U using Docker (%BUILD_TYPE% build)...
@@ -44,6 +43,6 @@ echo - build\lovepotion.rpx
 echo - build\lovepotion.wuhb
 if "%BUILD_TYPE%"=="Debug" (
     echo.
-    echo Debug builds will write logs to SD card: /lovepotion_debug.log
+    echo Debug builds will write logs to SD card: /balatro_debug.log
 )
 pause

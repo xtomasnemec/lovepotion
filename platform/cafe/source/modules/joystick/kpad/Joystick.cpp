@@ -1,6 +1,7 @@
 #include "common/screen.hpp"
 
 #include "modules/joystick/kpad/Joystick.hpp"
+#include "DebugLogger.hpp"
 
 namespace love
 {
@@ -23,30 +24,55 @@ namespace love
         {
             KPADReadEx(WPAD_CHAN_0, &this->status, 1, &this->error);
 
-            if (this->error != KPAD_ERROR_NO_SAMPLES)
+            if (this->error == KPAD_ERROR_OK || this->error == KPAD_ERROR_NO_SAMPLES)
             {
                 switch (this->getGamepadType())
                 {
                     case GAMEPAD_TYPE_NINTENDO_WII_REMOTE:
                     {
                         this->state = { this->status.trigger, this->status.release, this->status.hold };
+                        
+                        // Debug output to track input state
+                        if (this->status.trigger != 0 || this->status.release != 0)
+                        {
+                            DebugLogger::log("KPAD Wiimote Input - Trigger: 0x%08X, Release: 0x%08X, Hold: 0x%08X", 
+                                   this->status.trigger, this->status.release, this->status.hold);
+                        }
                         break;
                     }
                     case GAMEPAD_TYPE_NINTENDO_WII_CLASSIC:
                     {
                         this->state = { this->status.classic.trigger, this->status.classic.release,
                                         this->status.classic.hold };
+                        
+                        // Debug output to track input state
+                        if (this->status.classic.trigger != 0 || this->status.classic.release != 0)
+                        {
+                            DebugLogger::log("KPAD Classic Input - Trigger: 0x%08X, Release: 0x%08X, Hold: 0x%08X", 
+                                   this->status.classic.trigger, this->status.classic.release, this->status.classic.hold);
+                        }
                         break;
                     }
                     case GAMEPAD_TYPE_NINTENDO_WII_U_PRO:
                     {
                         this->state = { this->status.pro.trigger, this->status.pro.release,
                                         this->status.pro.hold };
+                        
+                        // Debug output to track input state
+                        if (this->status.pro.trigger != 0 || this->status.pro.release != 0)
+                        {
+                            DebugLogger::log("KPAD Pro Input - Trigger: 0x%08X, Release: 0x%08X, Hold: 0x%08X", 
+                                   this->status.pro.trigger, this->status.pro.release, this->status.pro.hold);
+                        }
                         break;
                     }
                     default:
                         break;
                 }
+            }
+            else
+            {
+                DebugLogger::log("KPAD Read Error: %d", this->error);
             }
         }
 

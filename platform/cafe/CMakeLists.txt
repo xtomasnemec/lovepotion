@@ -21,6 +21,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # find source -type f | grep "\.cpp$" | clip
 target_sources(${PROJECT_NAME} PRIVATE
 source/boot.cpp
+source/debug_log.cpp
 source/DebugLogger.cpp
 source/common/screen.cpp
 source/driver/audio/AudioBuffer.cpp

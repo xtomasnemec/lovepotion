@@ -7,6 +7,10 @@
 #include "modules/joystick/JoystickModule.hpp"
 #include "modules/touch/Touch.hpp"
 
+#if defined(__WIIU__)
+#include "DebugLogger.hpp"
+#endif
+
 #include <mutex>
 
 namespace love
@@ -333,12 +337,43 @@ namespace love
 
     void Event::pump(float timeout)
     {
+        static int pumpCount = 0;
+        pumpCount++;
+        if (pumpCount % 60 == 1) // Log every 60 calls (roughly once per second)
+        {
+#if defined(__WIIU__)
+            DebugLogger::log("Event::pump() called #%d", pumpCount);
+#else
+            printf("[DEBUG] Event::pump() called #%d\n", pumpCount);
+#endif
+        }
+        
         while (EventQueue::getInstance().poll(&this->event))
         {
+#if defined(__WIIU__)
+            DebugLogger::log("Event::pump: Got event type=%d subtype=%d", this->event.type, this->event.subtype);
+#else
+            printf("[DEBUG] Event::pump: Got event type=%d subtype=%d\n", this->event.type, this->event.subtype);
+#endif
             StrongRef<Message> message(convert(this->event), Acquire::NO_RETAIN);
 
             if (message)
+            {
+#if defined(__WIIU__)
+                DebugLogger::log("Event::pump: Converted to message: %s", message->name.c_str());
+#else
+                printf("[DEBUG] Event::pump: Converted to message: %s\n", message->name.c_str());
+#endif
                 this->push(message);
+            }
+            else
+            {
+#if defined(__WIIU__)
+                DebugLogger::log("Event::pump: Event conversion failed");
+#else
+                printf("[DEBUG] Event::pump: Event conversion failed\n");
+#endif
+            }
         }
     }
 

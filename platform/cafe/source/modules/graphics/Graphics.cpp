@@ -17,21 +17,71 @@ namespace love
 {
     Graphics::Graphics() : GraphicsBase("love.graphics.gx2")
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "Graphics constructor called\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
         auto* window = Module::getInstance<Window>(M_WINDOW);
+
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "Graphics: got window instance %p\n", (void*)window);
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
 
         if (window != nullptr)
         {
+#ifdef __WIIU__
+            FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile3) {
+                fprintf(logFile3, "Graphics: setting graphics on window\n");
+                fflush(logFile3);
+                fclose(logFile3);
+            }
+#endif
             window->setGraphics(this);
 
             if (window->isOpen())
             {
+#ifdef __WIIU__
+                FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile4) {
+                    fprintf(logFile4, "Graphics: window is open, setting window parameters\n");
+                    fflush(logFile4);
+                    fclose(logFile4);
+                }
+#endif
                 int width, height;
                 Window::WindowSettings settings {};
 
                 window->getWindow(width, height, settings);
                 window->setWindow(width, height, &settings);
+#ifdef __WIIU__
+                FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile5) {
+                    fprintf(logFile5, "Graphics: window parameters set (%dx%d)\n", width, height);
+                    fflush(logFile5);
+                    fclose(logFile5);
+                }
+#endif
             }
         }
+#ifdef __WIIU__
+        FILE* logFile6 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile6) {
+            fprintf(logFile6, "Graphics constructor completed\n");
+            fflush(logFile6);
+            fclose(logFile6);
+        }
+#endif
     }
 
     Graphics::~Graphics()
@@ -329,10 +379,37 @@ namespace love
     bool Graphics::setMode(int width, int height, int pixelWidth, int pixelHeight, bool backBufferStencil,
                            bool backBufferDepth, int msaa)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "Graphics::setMode() called with %dx%d\n", width, height);
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
         gx2.initialize();
+
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "Graphics: gx2.initialize() completed\n");
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
 
         this->created = true;
         this->initCapabilities();
+
+#ifdef __WIIU__
+        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3) {
+            fprintf(logFile3, "Graphics: initCapabilities() completed\n");
+            fflush(logFile3);
+            fclose(logFile3);
+        }
+#endif
 
         // gx2.setupContext();
 
@@ -340,8 +417,41 @@ namespace love
         {
             if (this->batchedDrawState.vertexBuffer == nullptr)
             {
+#ifdef __WIIU__
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    fprintf(logFile, "Graphics: About to create index buffer with size %d\n", INIT_INDEX_BUFFER_SIZE);
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+#endif
                 this->batchedDrawState.indexBuffer  = newIndexBuffer(INIT_INDEX_BUFFER_SIZE);
+#ifdef __WIIU__
+                FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile2) {
+                    fprintf(logFile2, "Graphics: Index buffer created successfully\n");
+                    fflush(logFile2);
+                    fclose(logFile2);
+                }
+#endif
+                
+#ifdef __WIIU__
+                FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile3) {
+                    fprintf(logFile3, "Graphics: About to create vertex buffer with size %d\n", INIT_VERTEX_BUFFER_SIZE);
+                    fflush(logFile3);
+                    fclose(logFile3);
+                }
+#endif
                 this->batchedDrawState.vertexBuffer = newVertexBuffer(INIT_VERTEX_BUFFER_SIZE);
+#ifdef __WIIU__
+                FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile4) {
+                    fprintf(logFile4, "Graphics: Vertex buffer created successfully\n");
+                    fflush(logFile4);
+                    fclose(logFile4);
+                }
+#endif
             }
         }
         catch (love::Exception&)
@@ -349,14 +459,50 @@ namespace love
             throw;
         }
 
+#ifdef __WIIU__
+        FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile5) {
+            fprintf(logFile5, "Graphics: Buffers created, about to load volatile objects\n");
+            fflush(logFile5);
+            fclose(logFile5);
+        }
+#endif
+
         if (!Volatile::loadAll())
             std::printf("Failed to load all volatile objects.\n");
 
+#ifdef __WIIU__
+        FILE* logFile6 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile6) {
+            fprintf(logFile6, "Graphics: Volatile objects loaded, about to restore state\n");
+            fflush(logFile6);
+            fclose(logFile6);
+        }
+#endif
+
         this->restoreState(this->states.back());
+
+#ifdef __WIIU__
+        FILE* logFile7 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile7) {
+            fprintf(logFile7, "Graphics: State restored, about to create standard shaders\n");
+            fflush(logFile7);
+            fclose(logFile7);
+        }
+#endif
 
         for (int index = 0; index < ShaderBase::STANDARD_MAX_ENUM; index++)
         {
             auto type = (Shader::StandardShader)index;
+
+#ifdef __WIIU__
+            FILE* logFile8 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile8) {
+                fprintf(logFile8, "Graphics: Creating standard shader %d\n", index);
+                fflush(logFile8);
+                fclose(logFile8);
+            }
+#endif
 
             if (!Shader::standardShaders[index])
             {
@@ -366,19 +512,62 @@ namespace love
                 stages.push_back(Shader::getDefaultStagePath(type, SHADERSTAGE_VERTEX));
                 stages.push_back(Shader::getDefaultStagePath(type, SHADERSTAGE_PIXEL));
 
+#ifdef __WIIU__
+                FILE* logFile9 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile9) {
+                    fprintf(logFile9, "Graphics: About to create shader %d with stages\n", index);
+                    fflush(logFile9);
+                    fclose(logFile9);
+                }
+#endif
+
                 try
                 {
                     Shader::standardShaders[type] = this->newShader(stages, options);
+#ifdef __WIIU__
+                    FILE* logFile10 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile10) {
+                        fprintf(logFile10, "Graphics: Shader %d created successfully\n", index);
+                        fflush(logFile10);
+                        fclose(logFile10);
+                    }
+#endif
                 }
                 catch (const std::exception& e)
                 {
+#ifdef __WIIU__
+                    FILE* logFile11 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile11) {
+                        fprintf(logFile11, "Graphics: Exception creating shader %d: %s\n", index, e.what());
+                        fflush(logFile11);
+                        fclose(logFile11);
+                    }
+#endif
                     throw;
                 }
             }
         }
 
+#ifdef __WIIU__
+        FILE* logFile12 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile12) {
+            fprintf(logFile12, "Graphics: All standard shaders created, about to attach default shader\n");
+            fflush(logFile12);
+            fclose(logFile12);
+        }
+#endif
+
         if (!Shader::current)
             Shader::standardShaders[Shader::STANDARD_DEFAULT]->attach();
+
+#ifdef __WIIU__
+        FILE* logFile13 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile13) {
+            fprintf(logFile13, "Graphics: Default shader attached, setMode() completed successfully\n");
+            fflush(logFile13);
+            fclose(logFile13);
+        }
+#endif
 
         return true;
     }

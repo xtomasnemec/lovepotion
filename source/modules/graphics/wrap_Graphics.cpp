@@ -38,6 +38,20 @@ int Wrap_Graphics::reset(lua_State*)
 
 int Wrap_Graphics::clear(lua_State* L)
 {
+#ifdef __WIIU__
+    static int clearCallCount = 0;
+    clearCallCount++;
+    
+    if (clearCallCount <= 10 || clearCallCount % 60 == 0) // Log first 10 calls, then every 60 calls
+    {
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "clear() called from Lua (call #%d)\n", clearCallCount);
+            fflush(logFile);
+            fclose(logFile);
+        }
+    }
+#endif
     OptionalColor color(Color(0, 0, 0, 0));
     std::vector<OptionalColor> colors {};
 
@@ -127,6 +141,18 @@ int Wrap_Graphics::clear(lua_State* L)
 
 int Wrap_Graphics::present(lua_State* L)
 {
+#ifdef __WIIU__
+    static int presentCount = 0;
+    presentCount++;
+    if (presentCount <= 5 || presentCount % 60 == 0) {
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "present() called from Lua (#%d)\n", presentCount);
+            fflush(logFile);
+            fclose(logFile);
+        }
+    }
+#endif
     luax_catchexcept(L, [&]() { instance()->present(L); });
 
     return 0;
@@ -175,6 +201,14 @@ int Wrap_Graphics::getColor(lua_State* L)
 
 int Wrap_Graphics::setBackgroundColor(lua_State* L)
 {
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "setBackgroundColor() called from Lua\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
     Color color {};
 
     if (lua_istable(L, 1))
@@ -915,6 +949,15 @@ static int pushNewTexture(lua_State* L, TextureBase::Slices* slices, const Textu
 
 int Wrap_Graphics::newTexture(lua_State* L)
 {
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "newTexture() called from Lua\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+    
     luax_checkgraphicscreated(L);
 
     Texture::Slices slices(TEXTURE_2D);
@@ -1148,6 +1191,18 @@ int Wrap_Graphics::newArrayTexture(lua_State* L)
 
 int Wrap_Graphics::draw(lua_State* L)
 {
+#ifdef __WIIU__
+    static int drawCount = 0;
+    drawCount++;
+    if (drawCount <= 10 || drawCount % 120 == 0) {
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "draw() called from Lua (#%d)\n", drawCount);
+            fflush(logFile);
+            fclose(logFile);
+        }
+    }
+#endif
     Drawable* drawable   = nullptr;
     TextureBase* texture = nullptr;
 
@@ -1304,6 +1359,18 @@ int Wrap_Graphics::newFont(lua_State* L)
 
 int Wrap_Graphics::print(lua_State* L)
 {
+#ifdef __WIIU__
+    static int printCount = 0;
+    printCount++;
+    if (printCount <= 5 || printCount % 60 == 0) {
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "print() called from Lua (#%d)\n", printCount);
+            fflush(logFile);
+            fclose(logFile);
+        }
+    }
+#endif
     std::vector<ColoredString> strings {};
     luax_checkcoloredstring(L, 1, strings);
 
@@ -1472,6 +1539,18 @@ int Wrap_Graphics::polygon(lua_State* L)
 
 int Wrap_Graphics::rectangle(lua_State* L)
 {
+#ifdef __WIIU__
+    static int rectCount = 0;
+    rectCount++;
+    if (rectCount <= 5 || rectCount % 60 == 0) {
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "rectangle() called from Lua (#%d)\n", rectCount);
+            fflush(logFile);
+            fclose(logFile);
+        }
+    }
+#endif
     Graphics::DrawMode mode;
     const char* name = luaL_checkstring(L, 1);
 

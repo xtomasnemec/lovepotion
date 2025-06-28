@@ -24,13 +24,13 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     __APP_VERSION__=\"${APP_VERSION}\" __LOVE_VERSION__=\"${LOVE_VERSION}\"
 )
 
-set(APP_TITLE  "LÖVE Potion")
-set(APP_AUTHOR "LÖVEBrew Team")
+set(APP_TITLE  "Balatro U")
+set(APP_AUTHOR "xtomasnemec")
 
 file(COPY libraries/luasocket DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(APP_TITLE "LÖVE Potion (${COMMIT_HASH})")
+    set(APP_TITLE "Balatro U Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE __DEBUG__=1)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE __DEBUG__=0)

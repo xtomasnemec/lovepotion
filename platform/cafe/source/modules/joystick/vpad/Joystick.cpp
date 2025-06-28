@@ -1,6 +1,7 @@
 #include <cstring>
 
 #include "modules/joystick/vpad/Joystick.hpp"
+#include "DebugLogger.hpp"
 
 namespace love
 {
@@ -25,8 +26,21 @@ namespace love
             VPADRead(VPAD_CHAN_0, &this->status, 1, &this->error);
 
             const auto& status = this->status;
-            if (this->error != VPAD_READ_NO_SAMPLES)
+            if (this->error == VPAD_READ_SUCCESS || this->error == VPAD_READ_NO_SAMPLES)
+            {
                 this->state = { status.trigger, status.release, status.hold };
+                
+                // Debug output to track input state
+                if (status.trigger != 0 || status.release != 0)
+                {
+                    DebugLogger::log("VPAD Input - Trigger: 0x%08X, Release: 0x%08X, Hold: 0x%08X", 
+                           status.trigger, status.release, status.hold);
+                }
+            }
+            else
+            {
+                DebugLogger::log("VPAD Read Error: %d", this->error);
+            }
         }
 
         bool Joystick::open(int64_t deviceId)

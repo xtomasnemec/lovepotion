@@ -330,7 +330,14 @@ namespace love
 
             if (dataSize > state.vertexBuffer->getUsableSize())
             {
+#ifdef __WIIU__
+                // Wii U: Use conservative growth to prevent memory issues
+                const size_t WII_U_MAX_VERTEX_BUFFER = 64 * 1024 * 1024; // 64MB limit
+                size_t newSize = std::max(dataSize, state.vertexBuffer->getSize() + (state.vertexBuffer->getSize() / 2));
+                bufferSizes[0] = std::min(newSize, WII_U_MAX_VERTEX_BUFFER);
+#else
                 bufferSizes[0] = std::max(dataSize, state.vertexBuffer->getSize() * 2);
+#endif
                 shouldResize   = true;
             }
 
@@ -346,7 +353,14 @@ namespace love
 
             if (dataSize > state.indexBuffer->getUsableSize())
             {
+#ifdef __WIIU__
+                // Wii U: Use conservative growth to prevent memory issues
+                const size_t WII_U_MAX_INDEX_BUFFER = 16 * 1024 * 1024; // 16MB limit
+                size_t newSize = std::max(dataSize, state.indexBuffer->getSize() + (state.indexBuffer->getSize() / 2));
+                bufferSizes[1] = std::min(newSize, WII_U_MAX_INDEX_BUFFER);
+#else
                 bufferSizes[1] = std::max(dataSize, state.indexBuffer->getSize() * 2);
+#endif
                 shouldResize   = true;
             }
         }

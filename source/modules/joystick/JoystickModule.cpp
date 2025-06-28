@@ -6,10 +6,31 @@ namespace love
 {
     JoystickModule::JoystickModule() : Module(M_JOYSTICK, "love.joystick")
     {
-        for (size_t index = 0; index < (size_t)joystick::getJoystickCount(); index++)
+        int joystickCount = joystick::getJoystickCount();
+        
+        // Use a simple file write for debug since printf might not show up
+        FILE* debugFile = fopen("joystick_debug.txt", "w");
+        if (debugFile) {
+            fprintf(debugFile, "JoystickModule: Detected %d joystick(s)\n", joystickCount);
+            fclose(debugFile);
+        }
+        
+        for (size_t index = 0; index < (size_t)joystickCount; index++)
         {
+            debugFile = fopen("joystick_debug.txt", "a");
+            if (debugFile) {
+                fprintf(debugFile, "JoystickModule: Adding joystick %zu\n", index);
+                fclose(debugFile);
+            }
+            
             this->addJoystick(index);
             EventQueue::getInstance().sendJoystickStatus(true, index);
+            
+            debugFile = fopen("joystick_debug.txt", "a");
+            if (debugFile) {
+                fprintf(debugFile, "JoystickModule: Successfully added joystick %zu\n", index);
+                fclose(debugFile);
+            }
         }
     }
 

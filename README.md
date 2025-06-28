@@ -44,3 +44,5 @@ N/A
 
 - [videah](https://github.com/videah)
   - Original author of LÖVE Potion
+
+# Created only for my port of [Balatro to the Wii U](https://github.com/xtomasnemec/Balatro-Wii-U)
