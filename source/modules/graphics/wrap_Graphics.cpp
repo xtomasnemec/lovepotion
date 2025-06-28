@@ -2070,6 +2070,11 @@ static constexpr luaL_Reg functions[] =
     { "newVideo",               Wrap_Graphics::newVideo              },
     // { "newArrayTexture",        Wrap_Graphics::newArrayTexture       },
 
+    // Shader functions
+    { "newShader",              Wrap_Graphics::newShader             },
+    { "setShader",              Wrap_Graphics::setShader             },
+    { "getShader",              Wrap_Graphics::getShader             },
+
     { "newTextBatch",           Wrap_Graphics::newTextBatch          },
     { "newSpriteBatch",         Wrap_Graphics::newSpriteBatch        },
 
@@ -2120,4 +2125,142 @@ int Wrap_Graphics::open(lua_State* L)
     module.types             = types;
 
     return luax_register_module(L, module);
+}
+
+int Wrap_Graphics::newShader(lua_State* L)
+{
+    luax_checkgraphicscreated(L);
+
+    std::vector<std::string> stages {};
+    ShaderBase::CompileOptions options {};
+
+    // Default vertex shader GLSL
+    std::string defaultVertexShader = R"(
+vec4 position(mat4 transform_projection, vec4 vertex_position)
+{
+    return transform_projection * vertex_position;
+}
+)";
+
+    // Default fragment shader GLSL  
+    std::string defaultFragmentShader = R"(
+vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
+{
+    return Texel(texture, texture_coords) * color;
+}
+)";
+
+    std::string vertexShaderCode = defaultVertexShader;
+    std::string fragmentShaderCode = defaultFragmentShader;
+
+    // Parse arguments
+    if (lua_type(L, 1) == LUA_TSTRING)
+    {
+        // Single argument - fragment shader code
+        fragmentShaderCode = luaL_checkstring(L, 1);
+        
+        if (lua_type(L, 2) == LUA_TSTRING)
+        {
+            // Two arguments - fragment and vertex shader
+            vertexShaderCode = fragmentShaderCode;
+            fragmentShaderCode = luaL_checkstring(L, 2);
+        }
+    }
+    else if (lua_type(L, 1) == LUA_TTABLE)
+    {
+        // Table with shader stages
+        lua_getfield(L, 1, "vertex");
+        if (lua_type(L, -1) == LUA_TSTRING)
+            vertexShaderCode = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "fragment");
+        if (lua_type(L, -1) == LUA_TSTRING)
+            fragmentShaderCode = lua_tostring(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, 1, "pixel");
+        if (lua_type(L, -1) == LUA_TSTRING)
+            fragmentShaderCode = lua_tostring(L, -1);
+        lua_pop(L, 1);
+    }
+
+    ShaderBase* shader = nullptr;
+    
+    luax_catchexcept(L, [&]() {
+        // Create temporary files for the shader source
+#ifdef __WIIU__
+        std::string tempVertexPath = "fs:/vol/external01/vertex_shader.glsl";
+        std::string tempFragmentPath = "fs:/vol/external01/fragment_shader.glsl";
+#else
+        std::string tempVertexPath = "/tmp/vertex_shader.glsl";
+        std::string tempFragmentPath = "/tmp/fragment_shader.glsl";
+#endif
+
+        // Write GLSL source to temporary files
+        FILE* vertexFile = fopen(tempVertexPath.c_str(), "w");
+        if (vertexFile)
+        {
+            fprintf(vertexFile, "%s", vertexShaderCode.c_str());
+            fclose(vertexFile);
+        }
+        else
+        {
+            luaL_error(L, "Failed to create temporary vertex shader file");
+        }
+
+        FILE* fragmentFile = fopen(tempFragmentPath.c_str(), "w");
+        if (fragmentFile)
+        {
+            fprintf(fragmentFile, "%s", fragmentShaderCode.c_str());
+            fclose(fragmentFile);
+        }
+        else
+        {
+            luaL_error(L, "Failed to create temporary fragment shader file");
+        }
+
+        stages.push_back(tempVertexPath);
+        stages.push_back(tempFragmentPath);
+
+        shader = instance()->newShader(stages, options);
+        
+        // Clean up temporary files
+        remove(tempVertexPath.c_str());
+        remove(tempFragmentPath.c_str());
+    });
+
+    luax_pushtype(L, shader);
+    shader->release();
+
+    return 1;
+}
+
+int Wrap_Graphics::setShader(lua_State* L)
+{
+    luax_checkgraphicscreated(L);
+
+    if (lua_isnoneornil(L, 1))
+    {
+        instance()->setShader();
+        return 0;
+    }
+
+    ShaderBase* shader = luax_checktype<ShaderBase>(L, 1);
+    instance()->setShader(shader);
+
+    return 0;
+}
+
+int Wrap_Graphics::getShader(lua_State* L)
+{
+    luax_checkgraphicscreated(L);
+
+    ShaderBase* shader = instance()->getShader();
+    if (shader)
+        luax_pushtype(L, shader);
+    else
+        lua_pushnil(L);
+
+    return 1;
 }

@@ -4,6 +4,8 @@
 
 namespace love
 {
+    Type ShaderBase::type("Shader", &Object::type);
+
     ShaderBase* ShaderBase::current                            = nullptr;
     ShaderBase* ShaderBase::standardShaders[STANDARD_MAX_ENUM] = { nullptr };
 

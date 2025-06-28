@@ -223,6 +223,11 @@ namespace love
         this->states.back().shader.set(nullptr);
     }
 
+    ShaderBase* GraphicsBase::getShader() const
+    {
+        return this->states.back().shader.get();
+    }
+
     GraphicsBase::Stats GraphicsBase::getStats() const
     {
         Stats stats {};

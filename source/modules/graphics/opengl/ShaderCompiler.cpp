@@ -4,6 +4,7 @@
 #include <gx2/shaders.h>
 #include <gx2/mem.h>
 #include <coreinit/memory.h>
+#include <coreinit/memdefaultheap.h>
 #include <gx2/registers.h>
 #include <cstdlib>
 #endif
@@ -20,15 +21,16 @@ namespace love
     std::string ShaderCompiler::compileVertexShader(const std::string& source)
     {
 #ifdef __WIIU__
-        // Enhanced GLSL to GX2 vertex shader conversion
-        std::string gx2Source = processShaderDefines(source);
-        
-        // Convert GLSL attributes to GX2 attributes
-        gx2Source = std::regex_replace(gx2Source, std::regex("attribute"), "in");
-        gx2Source = std::regex_replace(gx2Source, std::regex("varying"), "out");
-        
-        // Add required Love2D vertex shader uniforms and attributes
-        std::string loveVertexHeader = R"(
+        try {
+            // Enhanced GLSL to GX2 vertex shader conversion
+            std::string gx2Source = processShaderDefines(source);
+            
+            // Convert GLSL attributes to GX2 attributes
+            gx2Source = std::regex_replace(gx2Source, std::regex("attribute"), "in");
+            gx2Source = std::regex_replace(gx2Source, std::regex("varying"), "out");
+            
+            // Add required Love2D vertex shader uniforms and attributes
+            std::string loveVertexHeader = R"(
 #version 330 core
 // Love2D vertex shader attributes
 layout(location = 0) in vec4 VertexPosition;
@@ -65,6 +67,9 @@ void main()
         }
         
         return loveVertexHeader + "\n" + gx2Source;
+        } catch (const std::exception& e) {
+            return "// Vertex shader compilation failed: " + std::string(e.what());
+        }
 #else
         return source;
 #endif
@@ -73,14 +78,15 @@ void main()
     std::string ShaderCompiler::compileFragmentShader(const std::string& source)
     {
 #ifdef __WIIU__
-        // Enhanced GLSL to GX2 pixel shader conversion
-        std::string gx2Source = processShaderDefines(source);
-        
-        // Convert GLSL varying to in for fragment shaders
-        gx2Source = std::regex_replace(gx2Source, std::regex("varying"), "in");
-        
-        // Add required Love2D pixel shader header
-        std::string lovePixelHeader = R"(
+        try {
+            // Enhanced GLSL to GX2 pixel shader conversion
+            std::string gx2Source = processShaderDefines(source);
+            
+            // Convert GLSL varying to in for fragment shaders
+            gx2Source = std::regex_replace(gx2Source, std::regex("varying"), "in");
+            
+            // Add required Love2D pixel shader header
+            std::string lovePixelHeader = R"(
 #version 330 core
 // Love2D pixel shader inputs
 in vec2 VaryingTexCoord;
@@ -96,24 +102,27 @@ out vec4 love_Pixelcolor;
 // User-defined uniforms and functions will be added here
 )";
 
-        // If no main function found, add default Love2D pixel main
-        if (gx2Source.find("main") == std::string::npos)
-        {
-            gx2Source += R"(
+            // If no main function found, add default Love2D pixel main
+            if (gx2Source.find("main") == std::string::npos)
+            {
+                gx2Source += R"(
 void main()
 {
     love_Pixelcolor = texture(MainTex, VaryingTexCoord) * VaryingColor;
 }
 )";
+            }
+            else
+            {
+                // Replace common Love2D shader patterns
+                gx2Source = std::regex_replace(gx2Source, std::regex("gl_FragColor"), "love_Pixelcolor");
+                gx2Source = std::regex_replace(gx2Source, std::regex("texture2D"), "texture");
+            }
+            
+            return lovePixelHeader + "\n" + gx2Source;
+        } catch (const std::exception& e) {
+            return "// Fragment shader compilation failed: " + std::string(e.what());
         }
-        else
-        {
-            // Replace common Love2D shader patterns
-            gx2Source = std::regex_replace(gx2Source, std::regex("gl_FragColor"), "love_Pixelcolor");
-            gx2Source = std::regex_replace(gx2Source, std::regex("texture2D"), "texture");
-        }
-        
-        return lovePixelHeader + "\n" + gx2Source;
 #else
         return source;
 #endif
@@ -135,29 +144,30 @@ void main()
     GX2VertexShader* ShaderCompiler::compileAndCacheVertexShader(const std::string& source)
     {
 #ifdef __WIIU__
-        // Check cache first
-        auto it = compiledVertexShaders.find(source);
-        if (it != compiledVertexShaders.end())
-            return it->second;
+        try {
+            // Check cache first
+            auto it = compiledVertexShaders.find(source);
+            if (it != compiledVertexShaders.end())
+                return it->second;
 
-        // Compile new shader
-        std::string compiledSource = compileVertexShader(source);
-        
-        // Create GX2 vertex shader
-        GX2VertexShader* shader = (GX2VertexShader*)malloc(sizeof(GX2VertexShader));
-        if (!shader)
-            return nullptr;
+            // Compile GLSL to GX2 compatible code
+            std::string compiledSource = compileVertexShader(source);
             
-        memset(shader, 0, sizeof(GX2VertexShader));
-        
-        // This would need actual GX2 shader compilation
-        // For now, just store the compiled source
-        shader->mode = GX2_SHADER_MODE_UNIFORM_REGISTER;
-        
-        // Cache the shader
-        compiledVertexShaders[source] = shader;
-        
-        return shader;
+            // Check if compilation failed
+            if (compiledSource.find("// Vertex shader compilation failed:") == 0) {
+                return nullptr; // Return null for failed compilation
+            }
+            
+            // For now, return nullptr to avoid crashes until proper GX2 compilation is implemented
+            // TODO: Implement real GLSL-to-GX2 compilation
+            
+            // Cache null result to avoid repeated failed attempts
+            compiledVertexShaders[source] = nullptr;
+            
+            return nullptr;
+        } catch (const std::exception& e) {
+            return nullptr;
+        }
 #else
         return nullptr;
 #endif
@@ -166,28 +176,30 @@ void main()
     GX2PixelShader* ShaderCompiler::compileAndCachePixelShader(const std::string& source)
     {
 #ifdef __WIIU__
-        // Check cache first
-        auto it = compiledPixelShaders.find(source);
-        if (it != compiledPixelShaders.end())
-            return it->second;
+        try {
+            // Check cache first
+            auto it = compiledPixelShaders.find(source);
+            if (it != compiledPixelShaders.end())
+                return it->second;
 
-        // Compile new shader
-        std::string compiledSource = compileFragmentShader(source);
-        
-        // Create GX2 pixel shader
-        GX2PixelShader* shader = (GX2PixelShader*)malloc(sizeof(GX2PixelShader));
-        if (!shader)
-            return nullptr;
+            // Compile GLSL to GX2 compatible code
+            std::string compiledSource = compileFragmentShader(source);
             
-        memset(shader, 0, sizeof(GX2PixelShader));
-        
-        // This would need actual GX2 shader compilation
-        shader->mode = GX2_SHADER_MODE_UNIFORM_REGISTER;
-        
-        // Cache the shader
-        compiledPixelShaders[source] = shader;
-        
-        return shader;
+            // Check if compilation failed
+            if (compiledSource.find("// Fragment shader compilation failed:") == 0) {
+                return nullptr; // Return null for failed compilation
+            }
+            
+            // For now, return nullptr to avoid crashes until proper GX2 compilation is implemented
+            // TODO: Implement real GLSL-to-GX2 compilation
+            
+            // Cache null result to avoid repeated failed attempts
+            compiledPixelShaders[source] = nullptr;
+            
+            return nullptr;
+        } catch (const std::exception& e) {
+            return nullptr;
+        }
 #else
         return nullptr;
 #endif

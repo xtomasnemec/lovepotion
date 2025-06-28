@@ -123,6 +123,13 @@ namespace Wrap_Graphics
 
     int newVideo(lua_State* L);
 
+    // Shader functions
+    int newShader(lua_State* L);
+    
+    int setShader(lua_State* L);
+    
+    int getShader(lua_State* L);
+
     int newTextureView(lua_State* L);
 
     int newArrayTexture(lua_State* L);

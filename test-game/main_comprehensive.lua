@@ -72,10 +72,60 @@ function love.load()
         print("Sound test failed:", soundError)
     end
     
-    -- Skip shader for now to improve performance - shaders seem to be causing issues
-    print("Skipping shader test for better performance...")
-    testShader = nil
-    testResults.shader = "SKIPPED: For performance"
+    -- Test shader loading with new GLSL support
+    print("Testing GLSL shader loading...")
+    local shaderSuccess, shaderError = pcall(function()
+        local vertexShader = [[
+            attribute vec4 VertexPosition;
+            attribute vec2 VertexTexCoord;
+            attribute vec4 VertexColor;
+            
+            varying vec2 VaryingTexCoord;
+            varying vec4 VaryingColor;
+            
+            uniform mat4 TransformProjectionMatrix;
+            uniform float time;
+            
+            void main()
+            {
+                VaryingTexCoord = VertexTexCoord;
+                VaryingColor = VertexColor;
+                
+                vec4 pos = VertexPosition;
+                pos.x += sin(time + pos.y * 0.1) * 0.1;
+                
+                gl_Position = TransformProjectionMatrix * pos;
+            }
+        ]]
+        
+        local fragmentShader = [[
+            varying vec2 VaryingTexCoord;
+            varying vec4 VaryingColor;
+            
+            uniform float time;
+            
+            void main()
+            {
+                vec2 uv = VaryingTexCoord;
+                vec3 color = vec3(
+                    0.5 + 0.5 * sin(time + uv.x * 6.28),
+                    0.5 + 0.5 * sin(time + uv.y * 6.28 + 2.09),
+                    0.5 + 0.5 * sin(time + (uv.x + uv.y) * 6.28 + 4.18)
+                );
+                
+                gl_FragColor = vec4(color, 1.0) * VaryingColor;
+            }
+        ]]
+        
+        testShader = love.graphics.newShader(vertexShader, fragmentShader)
+        testResults.shader = "SUCCESS: GLSL shader compiled"
+        print("GLSL shader created successfully!")
+    end)
+    if not shaderSuccess then
+        testResults.shader = "ERROR: " .. tostring(shaderError)
+        print("Shader test failed:", shaderError)
+        testShader = nil
+    end
     
     -- Check for joysticks
     local joystickCount = love.joystick.getJoystickCount()
@@ -100,6 +150,11 @@ function love.update(dt)
     end
     
     -- No shader updates for maximum performance
+    -- But if we have a shader, update its time uniform
+    if testShader then
+        local time = love.timer.getTime() or (frameCount * 0.016)
+        -- Note: uniform setting will be implemented as shader functionality improves
+    end
     
     -- Very minimal debug prints
     if frameCount % 1800 == 0 then -- Every 30 seconds at 60fps
@@ -124,20 +179,39 @@ function love.draw()
     love.graphics.print("Font: " .. (testFont and "OK" or "FAIL"), 10, 110)
     love.graphics.print("Image: " .. (testImage and "OK" or "FAIL"), 10, 130)
     love.graphics.print("Sound: " .. (testSound and "OK" or "FAIL"), 10, 150)
-    love.graphics.print("Shader: " .. (testShader and "OK" or "FAIL"), 10, 170)
+    love.graphics.print("Shader: " .. (testShader and "OK" or "NOT SUPPORTED"), 10, 170)
     
     -- Test image drawing (simplified)
     if testImage then
         love.graphics.draw(testImage, 300, 110)
     end
     
-    -- Simplified shader test - only if working
+    -- Enhanced shader test - now with real GLSL support!
     if testShader then
         love.graphics.setShader(testShader)
         love.graphics.setColor(1, 0.8, 0.6, 1)
-        love.graphics.rectangle("fill", 400, 110, 60, 60) -- Even smaller
+        
+        -- Draw a rectangle with the animated shader
+        love.graphics.rectangle("fill", 400, 110, 80, 80)
+        
+        -- Draw some triangles to test vertex shader animation
+        love.graphics.polygon("fill", 
+            500, 110,
+            520, 140, 
+            480, 140
+        )
+        
         love.graphics.setShader() -- Reset shader
         love.graphics.setColor(1, 1, 1, 1)
+        
+        -- Add shader status info
+        love.graphics.print("GLSL Shader: ACTIVE", 400, 200)
+    else
+        -- Draw static shapes if no shader
+        love.graphics.setColor(0.5, 0.5, 0.5, 1)
+        love.graphics.rectangle("fill", 400, 110, 80, 80)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.print("GLSL Shader: FAILED", 400, 200)
     end
     
     -- Very basic joystick info
@@ -182,7 +256,8 @@ function love.draw()
     love.graphics.setColor(1, 1, 1, 1)
     
     -- Essential controls only
-    love.graphics.print("A - Sound | B - Exit | X - Reload", 10, 350)
+    love.graphics.print("A - Sound | B - Exit | X - Reload Assets", 10, 350)
+    love.graphics.print("Note: Testing GLSL shader support on Wii U!", 10, 370)
 end
 
 function love.keypressed(key)

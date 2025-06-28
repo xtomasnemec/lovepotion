@@ -440,6 +440,8 @@ namespace love
 
         void setShader(ShaderBase* shader);
 
+        ShaderBase* getShader() const;
+
         void intersectScissor(const Rect& scissor);
 
         bool getScissor(Rect& scissor) const;
