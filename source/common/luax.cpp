@@ -167,6 +167,25 @@ namespace love
         FILE* logFileA = fopen("fs:/vol/external01/simple_debug.log", "a");
         if (logFileA) {
             fprintf(logFileA, "About to call lua_resume()...\n");
+            
+            // Log current Lua stack for debugging
+            int top = lua_gettop(L);
+            fprintf(logFileA, "Lua stack has %d items\n", top);
+            for (int i = 1; i <= top; i++) {
+                int type = lua_type(L, i);
+                const char* typeName = lua_typename(L, type);
+                fprintf(logFileA, "  Stack[%d]: %s", i, typeName);
+                if (type == LUA_TSTRING) {
+                    fprintf(logFileA, " = \"%s\"", lua_tostring(L, i));
+                } else if (type == LUA_TNUMBER) {
+                    fprintf(logFileA, " = %f", lua_tonumber(L, i));
+                } else if (type == LUA_TBOOLEAN) {
+                    fprintf(logFileA, " = %s", lua_toboolean(L, i) ? "true" : "false");
+                } else if (type == LUA_TFUNCTION) {
+                    fprintf(logFileA, " = function");
+                }
+                fprintf(logFileA, "\n");
+            }
             fflush(logFileA);
             fclose(logFileA);
         }

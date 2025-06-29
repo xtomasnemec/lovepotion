@@ -4,33 +4,41 @@ Tato složka obsahuje testy pro nově implementovanou GLSL shader podporu v LÖV
 
 ## Soubory
 
+- `main.lua` - Kompletní test všech funkcí včetně shader testů (default)
 - `main_comprehensive.lua` - Kompletní test všech funkcí včetně shader testů
 - `shader_test.lua` - Specializovaný test pouze pro GLSL shadery
 - `minimal_shader_test.lua` - Minimální shader test pro debugging
+- `main_embedded.lua` - Embedded shader test (standalone)
 - `main_shader.lua` - Spouštěč shader testu
 - `main_minimal.lua` - Spouštěč minimálního shader testu
+- `main_direct.lua` - Direct shader test
 
 ## Jak testovat
 
-### Kompletní test
+### Aktuální problémy a řešení
+
+**Problem**: Při spuštění se zobrazuje pouze bílá obrazovka s ikonou
+**Příčina**: Chyba při načítání externí modulů (require)
+**Řešení**: Použít embedded testy
+
+### Doporučené pořadí testování
 
 ```bash
-# Použijte main_comprehensive.lua jako hlavní soubor
-# Testuje fonty, obrázky, zvuky a nově GLSL shadery
+# 1. ZÁKLADNÍ TEST - embedded shader test (doporučeno)
+# Přejmenujte main_embedded.lua na main.lua a zkuste znovu
+
+# 2. Pokud osnovní test funguje, zkuste komplexnější:
+# Použijte původní main.lua (komplekní test)
+
+# 3. Pro debugging:
+# Přejmenujte main_direct.lua na main.lua
 ```
 
-### Pouze shader test
+### Embedded shader test (doporučeno pro první test)
 
 ```bash
-# Použijte main_shader.lua jako hlavní soubor
-# Zaměřuje se pouze na GLSL shader funkcionalitet
-```
-
-### Minimální shader test (pro debugging)
-
-```bash
-# Použijte main_minimal.lua jako hlavní soubor
-# Jednoduchý test pro debugging crash problémů
+# Tento test má vše v jednom souboru bez externích závislostí
+# main_embedded.lua -> main.lua
 ```
 
 ## Očekávané výsledky

@@ -7,6 +7,16 @@ ARG BUILD_TYPE=Debug
 # Install dos2unix using apt-get (not dkp-pacman)
 RUN apt-get update && apt-get install -y dos2unix
 
+# Install build tools and git for wav2btsnd
+RUN apt-get update && apt-get install -y git build-essential
+
+# Install OpenJDK for wav2btsnd.jar
+RUN apt-get update && apt-get install -y openjdk-11-jre-headless
+
+# Download wav2btsnd.jar
+RUN mkdir -p /opt/wav2btsnd && \
+    wget -O /opt/wav2btsnd/wav2btsnd.jar https://bitbucket.org/timogus/wav2btsnd/raw/master/wav2btsnd.jar
+
 RUN dkp-pacman -S --needed --noconfirm \
     wut-tools \
     wut \
@@ -27,8 +37,15 @@ COPY . .
 # Convert line endings and skip luasocket patches (luasocket is disabled for Wii U)
 RUN find /project -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs dos2unix || true
 
+# Convert bootSound.wav to bootSound.btsnd if present
+RUN if [ -f /project/platform/cafe/bootSound.wav ]; then \
+    echo "=== Converting bootSound.wav to bootSound.btsnd using wav2btsnd.jar ===" && \
+    java -jar /opt/wav2btsnd/wav2btsnd.jar /project/platform/cafe/bootSound.wav /project/platform/cafe/bootSound.btsnd; \
+    else echo "No bootSound.wav found, skipping btsnd conversion."; fi
+
 # Build
 RUN mkdir -p build && cd build && \
+    ls -lh /project/platform/cafe/ && \
     echo "=== Starting CMake configuration ===" && \
     cmake .. -DNINTENDO_WIIU=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/WiiU.cmake && \
     echo "=== CMake configuration completed ===" && \
@@ -43,9 +60,7 @@ RUN mkdir -p build && cd build && \
     find /project -name "*lovepotion*" -type f | head -20 && \
     echo "=== COPYING FILES ===" && \
     mkdir -p /output && \
-    find /project -name "*.rpx" -exec cp -v {} /output/ \; && \
     find /project -name "*.wuhb" -exec cp -v {} /output/ \; && \
-    find /project -name "*.elf" -exec cp -v {} /output/ \; && \
     find /project -name "*lovepotion*" -type f -executable -exec cp -v {} /output/ \; 2>/dev/null || true && \
     echo "=== FINAL OUTPUT DIRECTORY ===" && \
     ls -la /output/ && \

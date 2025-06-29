@@ -1,23 +1,16 @@
--- Comprehensive LOVE Potion Test Game for Wii U
--- Tests joysticks, fonts, images, sounds, and shaders
+-- Simple Test for GLSL Shader Support
+print("=== LOADING LOVE POTION TEST ===")
 
-local frameCount = 0
-
--- Test assets
-local testFont = nil
-local testImage = nil
-local testSound = nil
-local testShader = nil
-local testResults = {
-    font = "Not tested",
-    image = "Not tested", 
-    sound = "Not tested",
-    shader = "Not tested"
-}
+local shader = nil
+local time = 0
+local success = false
+local useShader = false
 
 function love.load()
-    print("=== COMPREHENSIVE TEST GAME LOADED ===")
-    love.graphics.setBackgroundColor(0, 0.2, 0.5) -- Dark blue background
+    print("=== SIMPLE SHADER TEST LOADED ===")
+    
+    -- Basic test without shader first
+    love.graphics.setBackgroundColor(0.1, 0.1, 0.1)
     love.window.setTitle("LOVE Potion Comprehensive Test")
     
     -- Test asset loading

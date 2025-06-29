@@ -129,8 +129,46 @@ namespace love
 
     static bool s_Shutdown = false;
 
+    // Helper to check for user-defined love.run and log which is used
+    void logWhichLoveRun(lua_State* L) {
+        lua_getglobal(L, "love");
+        if (lua_istable(L, -1)) {
+            lua_getfield(L, -1, "run");
+            if (lua_isfunction(L, -1)) {
+                DebugLogger::log("User-defined love.run detected: using user main loop");
+#ifdef __WIIU__
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    fprintf(logFile, "User-defined love.run detected: using user main loop\n");
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+#endif
+            } else {
+                DebugLogger::log("No user-defined love.run: using default main loop");
+#ifdef __WIIU__
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    fprintf(logFile, "No user-defined love.run: using default main loop\n");
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+#endif
+            }
+            lua_pop(L, 1); // pop love.run
+        } else {
+            DebugLogger::log("No global 'love' table found in Lua state");
+        }
+        lua_pop(L, 1); // pop love
+    }
+
     bool mainLoop(lua_State* L, int argc, int* nres)
     {
+        static bool checkedLoveRun = false;
+        if (!checkedLoveRun) {
+            logWhichLoveRun(L);
+            checkedLoveRun = true;
+        }
         DebugLogger::log("mainLoop() called with argc=%d, shutdown=%s", argc, s_Shutdown ? "true" : "false");
         
 #ifdef __WIIU__

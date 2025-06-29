@@ -61,6 +61,9 @@ if (NINTENDO_WIIU)
     )
 
     set(APP_ICON platform/cafe/icon.png)
+    set(APP_BANNER_TV platform/cafe/bootTvTex.png)
+    set(APP_BANNER_DRC platform/cafe/bootDrcTex.png)
+    set(APP_BOOT_SOUND platform/cafe/bootSound.btsnd)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(APP_ICON platform/cafe/icon-dev.png)
     endif()
@@ -73,6 +76,9 @@ if (NINTENDO_WIIU)
         SHORTNAME  "${APP_TITLE}"
         AUTHOR     ${APP_AUTHOR}
         ICON       ${APP_ICON}
+        BANNER_TV  ${APP_BANNER_TV}
+        BANNER_DRC ${APP_BANNER_DRC}
+        BOOT_SOUND ${APP_BOOT_SOUND}
     )
 
     target_sources(${PROJECT_NAME} PRIVATE
@@ -306,7 +312,6 @@ else()
         ${APP_LIBS} z luabit lua53 ogg modplug lua-https luasocket
     )
 endif()
-
 
 
 include_directories(
