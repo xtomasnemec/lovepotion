@@ -60,6 +60,7 @@ RUN mkdir -p build && cd build && \
     find /project -name "*lovepotion*" -type f | head -20 && \
     echo "=== COPYING FILES ===" && \
     mkdir -p /output && \
+    find /project -name "*.rpx" -exec cp -v {} /output/ \; && \
     find /project -name "*.wuhb" -exec cp -v {} /output/ \; && \
     find /project -name "*lovepotion*" -type f -executable -exec cp -v {} /output/ \; 2>/dev/null || true && \
     echo "=== FINAL OUTPUT DIRECTORY ===" && \

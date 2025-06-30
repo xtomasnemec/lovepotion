@@ -137,10 +137,6 @@ function love.boot()
     if not can_has_game then
         local nogame = require("love.nogame")
         nogame()
-
-        print([[LÖVE Potion is an *awesome* framework you can use to make 2D games in Lua.
-https://github.com/lovebrew/lovepotion"
-]])
     end
 end
 
@@ -277,7 +273,6 @@ function love.init()
                     end
                 end
             end
-        end
 
         love._setRenderers(renderers)
     end
@@ -356,30 +351,33 @@ function love.init()
 
     -- Setup window here.
     if c.window and c.modules.window then
-        love.window.setTitle(c.window.title or c.title)
-        assert(love.window.setMode(c.window.width, c.window.height,
-        {
-            fullscreen = c.window.fullscreen,
-            fullscreentype = c.window.fullscreentype,
-            vsync = c.window.vsync,
-            msaa = c.window.msaa,
-            stencil = c.window.stencil,
-            depth = c.window.depth,
-            resizable = c.window.resizable,
-            minwidth = c.window.minwidth,
-            minheight = c.window.minheight,
-            borderless = c.window.borderless,
-            centered = c.window.centered,
-            displayindex = c.window.displayindex,
-            display = c.window.display, -- deprecated
-            highdpi = c.window.highdpi, -- deprecated
-            usedpiscale = c.window.usedpiscale,
-            x = c.window.x,
-            y = c.window.y,
-        }), "Could not set window mode")
-        if c.window.icon then
-            assert(love.image, "If an icon is set in love.conf, love.image must be loaded!")
-            love.window.setIcon(love.image.newImageData(c.window.icon))
+        -- Only set window mode if not on Wii U (LovePotion)
+        if love.system.getOS() ~= 'cafe' and love.window and love.window.setMode then
+            love.window.setTitle(c.window.title or c.title)
+            assert(love.window.setMode(c.window.width, c.window.height,
+            {
+                fullscreen = c.window.fullscreen,
+                fullscreentype = c.window.fullscreentype,
+                vsync = c.window.vsync,
+                msaa = c.window.msaa,
+                stencil = c.window.stencil,
+                depth = c.window.depth,
+                resizable = c.window.resizable,
+                minwidth = c.window.minwidth,
+                minheight = c.window.minheight,
+                borderless = c.window.borderless,
+                centered = c.window.centered,
+                displayindex = c.window.displayindex,
+                display = c.window.display, -- deprecated
+                highdpi = c.window.highdpi, -- deprecated
+                usedpiscale = c.window.usedpiscale,
+                x = c.window.x,
+                y = c.window.y,
+            }), "Could not set window mode")
+            if c.window.icon then
+                assert(love.image, "If an icon is set in love.conf, love.image must be loaded!")
+                love.window.setIcon(love.image.newImageData(c.window.icon))
+            end
         end
     end
 
@@ -465,6 +463,6 @@ return function()
 
     return 1
 end
-
+end
 -- DO NOT REMOVE THE NEXT LINE. It is used to load this file as a C++ string.
 --)luastring"--"

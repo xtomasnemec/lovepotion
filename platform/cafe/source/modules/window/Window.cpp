@@ -40,7 +40,11 @@ namespace love
 
         this->close();
 
-        if (!this->createWindowAndContext(0, 0, width, height, 0))
+        // Always use fullscreen mode when creating the window
+        // (Assuming createWindowAndContext has a flag for fullscreen, e.g., last argument)
+        // If not, you may need to adjust the implementation of createWindowAndContext
+        const uint32_t FULLSCREEN_FLAG = 1; // Replace with actual flag if different
+        if (!this->createWindowAndContext(0, 0, width, height, FULLSCREEN_FLAG))
             return false;
 
         if (this->graphics.get())

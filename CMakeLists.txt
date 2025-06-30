@@ -477,3 +477,7 @@ endif()
 target_sources(${PROJECT_NAME} PRIVATE
     source/modules/video/wrap_Video.cpp
 )
+
+# Add stb_truetype.h include path for Wii U build
+    target_include_directories(${PROJECT_NAME} PRIVATE platform/cafe)
+    # If you ever move stb_truetype.h elsewhere, update this path accordingly
