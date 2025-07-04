@@ -13,6 +13,7 @@
 #include <gx2/swap.h>
 
 #include <proc_ui/procui.h>
+#include <coreinit/screen.h>
 
 #include <malloc.h>
 
@@ -24,6 +25,7 @@ namespace love
         targets {},
         context {},
         inForeground(false),
+        consecutivePresentCalls(0),
         commandBuffer(nullptr),
         state(nullptr),
         dirtyProjection(false)
@@ -191,10 +193,38 @@ namespace love
 
     void GX2::ensureInFrame()
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "GX2::ensureInFrame() called, inFrame = %s\n", this->inFrame ? "true" : "false");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
         GX2SetContextState(this->state);
 
         if (!this->inFrame)
+        {
+#ifdef __WIIU__
+            FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile2) {
+                fprintf(logFile2, "GX2::ensureInFrame() - starting new frame\n");
+                fflush(logFile2);
+                fclose(logFile2);
+            }
+#endif
             this->inFrame = true;
+        }
+        
+#ifdef __WIIU__
+        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3) {
+            fprintf(logFile3, "GX2::ensureInFrame() completed, inFrame = true\n");
+            fflush(logFile3);
+            fclose(logFile3);
+        }
+#endif
     }
 
     void GX2::copyCurrentScanBuffer()
@@ -210,11 +240,49 @@ namespace love
 
     void GX2::clear(const Color& color)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "GX2::clear() called with color: R=%.2f G=%.2f B=%.2f A=%.2f, inFrame = %s\n", 
+                   color.r, color.g, color.b, color.a, this->inFrame ? "true" : "false");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
         if (!this->inFrame)
-            return;
+        {
+#ifdef __WIIU__
+            FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile2) {
+                fprintf(logFile2, "GX2::clear() - not in frame, calling ensureInFrame\n");
+                fflush(logFile2);
+                fclose(logFile2);
+            }
+#endif
+            this->ensureInFrame();
+        }
 
+#ifdef __WIIU__
+        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3) {
+            fprintf(logFile3, "GX2::clear() - clearing framebuffer\n");
+            fflush(logFile3);
+            fclose(logFile3);
+        }
+#endif
+        
         GX2ClearColor(this->getFramebuffer(), color.r, color.g, color.b, color.a);
         GX2SetContextState(this->state);
+        
+#ifdef __WIIU__
+        FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile4) {
+            fprintf(logFile4, "GX2::clear() completed\n");
+            fflush(logFile4);
+            fclose(logFile4);
+        }
+#endif
     }
 
     void GX2::clearDepthStencil(int depth, uint8_t mask, double stencil)
@@ -287,11 +355,32 @@ namespace love
 
     void GX2::prepareDraw(GraphicsBase* graphics)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "GX2::prepareDraw() called\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
+        // Ensure we're in frame before any drawing operations
+        this->ensureInFrame();
+        
         if (Shader::current != nullptr)
         {
             auto* shader = (Shader*)ShaderBase::current;
             shader->updateBuiltinUniforms(graphics, this->uniform);
         }
+        
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "GX2::prepareDraw() completed\n");
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
     }
 
     void GX2::bindTextureToUnit(TextureBase* texture, int unit)
@@ -326,8 +415,81 @@ namespace love
 
     void GX2::present()
     {
-        this->inFrame = false;
+#ifdef __WIIU__
+        // CRITICAL: Detect endless loop and trigger fallback
+        static bool fallbackTriggered = false;
+        
+        this->consecutivePresentCalls++;
+        
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "GX2::present() called #%d, inFrame = %s\n", this->consecutivePresentCalls, this->inFrame ? "true" : "false");
+            fflush(logFile);
+            fclose(logFile);
+        }
+        
+        // If we've had too many consecutive present calls without a reset, trigger fallback
+        if (this->consecutivePresentCalls > 30 && !fallbackTriggered) {
+            fallbackTriggered = true;
+            
+            FILE* fallbackLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (fallbackLog) {
+                fprintf(fallbackLog, "=== ENDLESS LOOP DETECTED: TRIGGERING FALLBACK DIAGNOSTIC SCREEN ===\n");
+                fprintf(fallbackLog, "Consecutive present calls: %d\n", this->consecutivePresentCalls);
+                fprintf(fallbackLog, "This indicates lua_resume() is hanging in an endless loop\n");
+                fflush(fallbackLog);
+                fclose(fallbackLog);
+            }
+            
+            // Force entry into diagnostic fallback mode
+            this->showFallbackDiagnosticScreen();
+            return; // Skip normal present logic
+        }
+#endif
+        
+        if (!this->inFrame)
+        {
+#ifdef __WIIU__
+            FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile2) {
+                fprintf(logFile2, "GX2::present() - not in frame, calling ensureInFrame\n");
+                fflush(logFile2);
+                fclose(logFile2);
+            }
+#endif
+            this->ensureInFrame();
+        }
+        
+#ifdef __WIIU__
+        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3) {
+            fprintf(logFile3, "GX2::present() - presenting to both screens\n");
+            fflush(logFile3);
+            fclose(logFile3);
+        }
+#endif
+        
+        // Present to GamePad
+        GX2CopyColorBufferToScanBuffer(&this->targets[0].get(), GX2_SCAN_TARGET_DRC);
+        
+        // Present to TV as well (copy GamePad content to TV)
+        GX2CopyColorBufferToScanBuffer(&this->targets[0].get(), GX2_SCAN_TARGET_TV);
+        
+        // Swap buffers for both screens
         GX2SwapScanBuffers();
+        GX2Flush();
+        GX2WaitForVsync();
+        
+        this->inFrame = false;
+        
+#ifdef __WIIU__
+        FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile4) {
+            fprintf(logFile4, "GX2::present() completed, inFrame = false\n");
+            fflush(logFile4);
+            fclose(logFile4);
+        }
+#endif
     }
 
     void GX2::setViewport(const Rect& rect)
@@ -414,5 +576,123 @@ namespace love
                            destAlpha, operationA);
     }
 
-    GX2 gx2;
+    void GX2::showFallbackDiagnosticScreen()
+    {
+#ifdef __WIIU__
+        // Force immediate display of diagnostic message using OSScreen
+        // This bypasses the normal graphics pipeline which may be stuck
+        
+        FILE* diagnosticLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (diagnosticLog) {
+            fprintf(diagnosticLog, "=== SHOWING FALLBACK DIAGNOSTIC SCREEN ===\n");
+            fprintf(diagnosticLog, "Attempting to display diagnostic message using OSScreen\n");
+            fflush(diagnosticLog);
+            fclose(diagnosticLog);
+        }
+        
+        // Try to initialize screen
+        OSScreenInit();
+        
+        // Get buffer sizes
+        size_t tvBufferSize = OSScreenGetBufferSizeEx(SCREEN_TV);
+        size_t drcBufferSize = OSScreenGetBufferSizeEx(SCREEN_DRC);
+        
+        // Allocate buffers (simplified approach)
+        void* tvBuffer = memalign(0x100, tvBufferSize);
+        void* drcBuffer = memalign(0x100, drcBufferSize);
+        
+        if (tvBuffer && drcBuffer) {
+            // Set buffers
+            OSScreenSetBufferEx(SCREEN_TV, tvBuffer);
+            OSScreenSetBufferEx(SCREEN_DRC, drcBuffer);
+            
+            // Enable both screens
+            OSScreenEnableEx(SCREEN_TV, true);
+            OSScreenEnableEx(SCREEN_DRC, true);
+            
+            // Clear screens to black
+            OSScreenClearBufferEx(SCREEN_TV, 0x000000FF);
+            OSScreenClearBufferEx(SCREEN_DRC, 0x000000FF);
+            
+            // Display diagnostic text with more detailed information
+            const char* line1 = "LOVE POTION DIAGNOSTIC MODE";
+            const char* line2 = "*** ENDLESS GRAPHICS LOOP DETECTED ***";
+            const char* line3 = "lua_resume() was called but never returned";
+            const char* line4 = "Lua VM stuck in infinite loop";
+            const char* line5 = "Possible causes:";
+            const char* line6 = "- Infinite loop in love.run() or love.update()";
+            const char* line7 = "- Recursive function calls (stack overflow)";
+            const char* line8 = "- Blocking operation in main loop";
+            const char* line9 = "Check: fs:/vol/external01/simple_debug.log";
+            const char* line10 = "Press HOME to exit to Wii U menu";
+            
+            // Get current system time for display
+            OSCalendarTime calendarTime;
+            OSTicksToCalendarTime(OSGetTime(), &calendarTime);
+            
+            char timeStr[64];
+            snprintf(timeStr, sizeof(timeStr), "Time: %02d:%02d:%02d | Present calls: %d", 
+                     calendarTime.tm_hour, calendarTime.tm_min, calendarTime.tm_sec, this->consecutivePresentCalls);
+            
+            // Put text on TV (more detailed)
+            OSScreenPutFontEx(SCREEN_TV, 5, 2, line1);
+            OSScreenPutFontEx(SCREEN_TV, 5, 4, line2);
+            OSScreenPutFontEx(SCREEN_TV, 5, 5, line3);
+            OSScreenPutFontEx(SCREEN_TV, 5, 6, line4);
+            OSScreenPutFontEx(SCREEN_TV, 5, 8, line5);
+            OSScreenPutFontEx(SCREEN_TV, 5, 9, line6);
+            OSScreenPutFontEx(SCREEN_TV, 5, 10, line7);
+            OSScreenPutFontEx(SCREEN_TV, 5, 11, line8);
+            OSScreenPutFontEx(SCREEN_TV, 5, 13, line9);
+            OSScreenPutFontEx(SCREEN_TV, 5, 14, timeStr);
+            OSScreenPutFontEx(SCREEN_TV, 5, 16, line10);
+            
+            // Put text on GamePad (condensed)
+            OSScreenPutFontEx(SCREEN_DRC, 2, 1, "LOVE POTION DIAGNOSTIC");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 3, "*** ENDLESS LOOP DETECTED ***");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 4, "lua_resume() never returned");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 5, "Lua VM stuck in infinite loop");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 7, "Possible causes:");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 8, "- Infinite loop in love.run()");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 9, "- Recursive function calls");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 10, "- Blocking operation");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 12, "Check: simple_debug.log");
+            OSScreenPutFontEx(SCREEN_DRC, 2, 13, timeStr);
+            OSScreenPutFontEx(SCREEN_DRC, 2, 15, "Press HOME to exit");
+            
+            // Flip buffers to display
+            OSScreenFlipBuffersEx(SCREEN_TV);
+            OSScreenFlipBuffersEx(SCREEN_DRC);
+            
+            FILE* successLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (successLog) {
+                fprintf(successLog, "Fallback diagnostic screen displayed successfully\n");
+                fflush(successLog);
+                fclose(successLog);
+            }
+            
+            // Keep the diagnostic screen visible and enter a simple loop
+            // that doesn't hang like the graphics loop
+            while (true) {
+                // Simple delay to prevent 100% CPU usage
+                for (volatile int i = 0; i < 1000000; i++);
+                
+                // Refresh the diagnostic display periodically
+                OSScreenFlipBuffersEx(SCREEN_TV);
+                OSScreenFlipBuffersEx(SCREEN_DRC);
+            }
+        } else {
+            FILE* errorLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (errorLog) {
+                fprintf(errorLog, "FAILED to allocate OSScreen buffers for diagnostic display\n");
+                fflush(errorLog);
+                fclose(errorLog);
+            }
+        }
+#endif
+    }
+
 } // namespace love
+
+// Global instance definition
+love::GX2 love::gx2;

@@ -24,7 +24,15 @@ using namespace love;
 static int luax_checkgraphicscreated(lua_State* L)
 {
     if (!instance()->isCreated())
+    {
+#ifdef __WIIU__
+        // On Wii U, graphics can work without a traditional window
+        // so we just return without error
+        return 0;
+#else
         luaL_error(L, "love.graphics cannot function without a window!");
+#endif
+    }
 
     return 0;
 }
@@ -160,6 +168,18 @@ int Wrap_Graphics::present(lua_State* L)
 
 int Wrap_Graphics::setColor(lua_State* L)
 {
+#ifdef __WIIU__
+    static int setColorCount = 0;
+    setColorCount++;
+    if (setColorCount <= 10 || setColorCount % 120 == 0) {
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "setColor() called from Lua (#%d)\n", setColorCount);
+            fflush(logFile);
+            fclose(logFile);
+        }
+    }
+#endif
     Color color {};
 
     if (lua_istable(L, 1))
@@ -553,10 +573,16 @@ int Wrap_Graphics::getFrontFaceWinding(lua_State* L)
 
 int Wrap_Graphics::isCreated(lua_State* L)
 {
+#ifdef __WIIU__
+    // On Wii U, return boolean value instead of error
+    lua_pushboolean(L, instance()->isCreated());
+    return 1;
+#else
     if (!instance()->isCreated())
         return luaL_error(L, "love.graphics cannot function without a window!");
 
     return 0;
+#endif
 }
 
 int Wrap_Graphics::isActive(lua_State* L)
@@ -1235,6 +1261,16 @@ int Wrap_Graphics::draw(lua_State* L)
 int Wrap_Graphics::setFont(lua_State* L)
 {
     auto* font = luax_checktype<FontBase>(L, 1);
+    
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "setFont() called with font: %p\n", font);
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+    
     instance()->setFont(font);
 
     return 0;
@@ -1247,6 +1283,15 @@ int Wrap_Graphics::getFont(lua_State* L)
     FontBase* font = nullptr;
     luax_catchexcept(L, [&]() { font = instance()->getFont(); });
 
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "getFont() called: returning font=%p\n", font);
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
     luax_pushtype(L, font);
 
     return 1;
@@ -1255,7 +1300,7 @@ int Wrap_Graphics::getFont(lua_State* L)
 int Wrap_Graphics::setNewFont(lua_State* L)
 {
     // Create a new font and set it as current
-    int ret = newFont(L);  // This pushes the new font onto the stack
+    int ret = Wrap_Graphics::newFont(L);  // This pushes the new font onto the stack
     
     // Get the font from the stack
     auto* font = luax_checktype<FontBase>(L, -1);
@@ -1292,13 +1337,83 @@ int Wrap_Graphics::newTextBatch(lua_State* L)
     auto* font       = luax_checkfont(L, 1);
     TextBatch* batch = nullptr;
 
+    // Check if second argument (text) is nil, none, or empty string
     if (lua_isnoneornil(L, 2))
+    {
         luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font); });
+    }
+    else if (lua_isstring(L, 2))
+    {
+        const char* str = lua_tostring(L, 2);
+        if (str == nullptr || strlen(str) == 0)
+        {
+            // Handle empty string case - create empty text batch
+            luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font); });
+        }
+        else
+        {
+            std::vector<ColoredString> text {};
+            luax_checkcoloredstring(L, 2, text);
+            luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font, text); });
+        }
+    }
     else
     {
+        // Handle table case or other types
         std::vector<ColoredString> text {};
         luax_checkcoloredstring(L, 2, text);
+        luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font, text); });
+    }
 
+    luax_pushtype(L, batch);
+    batch->release();
+
+    return 1;
+}
+
+int Wrap_Graphics::newText(lua_State* L)
+{
+    luax_checkgraphicscreated(L);
+
+    FontBase* font = nullptr;
+    
+    // If first argument is nil or not provided, use default font
+    if (lua_isnoneornil(L, 1))
+    {
+        font = instance()->getFont();
+    }
+    else
+    {
+        font = luax_checkfont(L, 1);
+    }
+
+    TextBatch* batch = nullptr;
+
+    // Check if second argument (text) is nil, none, or empty string
+    if (lua_isnoneornil(L, 2))
+    {
+        luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font); });
+    }
+    else if (lua_isstring(L, 2))
+    {
+        const char* str = lua_tostring(L, 2);
+        if (str == nullptr || strlen(str) == 0)
+        {
+            // Handle empty string case - create empty text batch
+            luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font); });
+        }
+        else
+        {
+            std::vector<ColoredString> text {};
+            luax_checkcoloredstring(L, 2, text);
+            luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font, text); });
+        }
+    }
+    else
+    {
+        // Handle table case or other types
+        std::vector<ColoredString> text {};
+        luax_checkcoloredstring(L, 2, text);
         luax_catchexcept(L, [&]() { batch = instance()->newTextBatch(font, text); });
     }
 
@@ -1336,6 +1451,15 @@ int Wrap_Graphics::newFont(lua_State* L)
 {
     luax_checkgraphicscreated(L);
 
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "newFont() called from Lua\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
     FontBase* font = nullptr;
 
     if (!luax_istype(L, 1, Rasterizer::type))
@@ -1350,6 +1474,15 @@ int Wrap_Graphics::newFont(lua_State* L)
 
     auto* rasterizer = luax_checktype<Rasterizer>(L, 1);
     luax_catchexcept(L, [&]() { font = instance()->newFont(rasterizer); });
+
+#ifdef __WIIU__
+    FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile2) {
+        fprintf(logFile2, "newFont() created font: %p\n", font);
+        fflush(logFile2);
+        fclose(logFile2);
+    }
+#endif
 
     luax_pushtype(L, font);
     font->release();
@@ -1374,16 +1507,92 @@ int Wrap_Graphics::print(lua_State* L)
     std::vector<ColoredString> strings {};
     luax_checkcoloredstring(L, 1, strings);
 
+#ifdef __WIIU__
+    static int printDetailCount = 0;
+    printDetailCount++;
+    
+    // Enhanced logging for error handler debugging
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        if (printDetailCount <= 15 || 
+            (printDetailCount > 10 && printDetailCount <= 25) ||
+            (!strings.empty() && (strings[0].string.find("Error") != std::string::npos || 
+                                 strings[0].string.find("error") != std::string::npos ||
+                                 strings[0].string.find("ERROR") != std::string::npos))) {
+            
+            fprintf(logFile, "print() ENHANCED (#%d): strings.size()=%zu\n", 
+                   printDetailCount, strings.size());
+            
+            if (!strings.empty()) {
+                fprintf(logFile, "  text='%.100s'\n", strings[0].string.c_str());
+                fprintf(logFile, "  text_length=%zu\n", strings[0].string.length());
+            } else {
+                fprintf(logFile, "  text=EMPTY_STRINGS_VECTOR\n");
+            }
+            
+            // Check font status
+            FontBase* currentFont = nullptr;
+            try {
+                currentFont = instance()->getFont();
+            } catch (...) {
+                currentFont = nullptr;
+            }
+            
+            if (currentFont) {
+                fprintf(logFile, "  font=VALID_FONT_PTR(%p)\n", currentFont);
+            } else {
+                fprintf(logFile, "  font=NULL_OR_INVALID\n");
+            }
+            
+            // Check graphics state
+            bool graphicsCreated = instance()->isCreated();
+            bool graphicsActive = instance()->isActive();
+            fprintf(logFile, "  graphics_created=%s, graphics_active=%s\n", 
+                   graphicsCreated ? "true" : "false",
+                   graphicsActive ? "true" : "false");
+            
+            // Check current color
+            Color currentColor = instance()->getColor();
+            fprintf(logFile, "  color=R:%.2f G:%.2f B:%.2f A:%.2f\n", 
+                   currentColor.r, currentColor.g, currentColor.b, currentColor.a);
+        }
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
     // clang-format off
     if (luax_istype(L, 2, FontBase::type))
     {
         auto* font = luax_checkfont(L, 2);
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "print() using explicit font: %p\n", font);
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
         luax_checkstandardtransform(L, 3, [&](const Matrix4& transform) {
             instance()->print(strings, font, transform);
         });
     }
     else
     {
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            FontBase* defaultFont = nullptr;
+            try {
+                defaultFont = instance()->getFont();
+            } catch (...) {
+                defaultFont = nullptr;
+            }
+            fprintf(logFile2, "print() using default font: %p\n", defaultFont);
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
         luax_checkstandardtransform(L, 2, [&](const Matrix4& transform) {
             instance()->print(strings, transform);
         });
@@ -1562,6 +1771,20 @@ int Wrap_Graphics::rectangle(lua_State* L)
     float w = luaL_checknumber(L, 4);
     float h = luaL_checknumber(L, 5);
 
+#ifdef __WIIU__
+    static int rectDetailCount = 0;
+    rectDetailCount++;
+    if (rectDetailCount <= 3) {
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "rectangle() details (#%d): mode='%s', x=%.1f, y=%.1f, w=%.1f, h=%.1f\n", 
+                   rectDetailCount, name, x, y, w, h);
+            fflush(logFile);
+            fclose(logFile);
+        }
+    }
+#endif
+
     if (lua_isnoneornil(L, 6))
     {
         luax_catchexcept(L, [&]() { instance()->rectangle(mode, x, y, w, h); });
@@ -1585,10 +1808,10 @@ int Wrap_Graphics::rectangle(lua_State* L)
 int Wrap_Graphics::circle(lua_State* L)
 {
     Graphics::DrawMode mode;
-    const char* name = luaL_checkstring(L, 1);
+    const char* str = luaL_checkstring(L, 1);
 
-    if (!Graphics::getConstant(name, mode))
-        return luax_enumerror(L, "draw mode", Graphics::DrawModes, name);
+    if (!Graphics::getConstant(str, mode))
+        return luax_enumerror(L, "draw mode", Graphics::DrawModes, str);
 
     float x      = luaL_checknumber(L, 2);
     float y      = luaL_checknumber(L, 3);
@@ -1608,10 +1831,10 @@ int Wrap_Graphics::circle(lua_State* L)
 int Wrap_Graphics::ellipse(lua_State* L)
 {
     Graphics::DrawMode mode;
-    const char* name = luaL_checkstring(L, 1);
+    const char* str = luaL_checkstring(L, 1);
 
-    if (!Graphics::getConstant(name, mode))
-        return luax_enumerror(L, "draw mode", Graphics::DrawModes, name);
+    if (!Graphics::getConstant(str, mode))
+        return luax_enumerror(L, "draw mode", Graphics::DrawModes, str);
 
     float x = luaL_checknumber(L, 2);
     float y = luaL_checknumber(L, 3);
@@ -1632,10 +1855,10 @@ int Wrap_Graphics::ellipse(lua_State* L)
 int Wrap_Graphics::arc(lua_State* L)
 {
     Graphics::DrawMode mode;
-    const char* name = luaL_checkstring(L, 1);
+    const char* str = luaL_checkstring(L, 1);
 
-    if (!Graphics::getConstant(name, mode))
-        return luax_enumerror(L, "draw mode", Graphics::DrawModes, name);
+    if (!Graphics::getConstant(str, mode))
+        return luax_enumerror(L, "draw mode", Graphics::DrawModes, str);
 
     int start = 2;
 
@@ -1670,89 +1893,50 @@ int Wrap_Graphics::arc(lua_State* L)
 
 int Wrap_Graphics::points(lua_State* L)
 {
-    int argc = lua_gettop(L);
+    int argc = lua_gettop(L) - 1;
+    int arg1Type = lua_type(L, 1);
+    bool isTable = false;
 
-    bool isTable         = false;
-    bool isTableOfTables = false;
-
-    if (argc == 1 && lua_istable(L, 1))
+    if (argc == 1 && arg1Type == LUA_TTABLE)
     {
-        isTable = true;
         argc    = (int)luax_objlen(L, 1);
-
-        lua_rawgeti(L, 1, 1);
-        isTableOfTables = lua_istable(L, -1);
-        lua_pop(L, 1);
+        isTable = true;
     }
 
-    if (argc % 2 != 0 && !isTableOfTables)
+    if (arg1Type != LUA_TTABLE && arg1Type != LUA_TNUMBER)
+        return luax_typeerror(L, 1, "table or number");
+    else if (argc % 2 != 0 && !isTable)
         return luaL_error(L, "Number of vertex components must be a multiple of two.");
+    else if (argc < 4)
+        return luaL_error(L, "Need at least two vertices to draw a line.");
 
-    int numPositions = argc / 2;
+    int numVertices = argc / 2;
 
-    if (isTableOfTables)
-        numPositions = argc;
-
-    Vector2* positions = nullptr;
-    Color* colors      = nullptr;
-
-    if (isTableOfTables)
-    {
-        size_t size   = (sizeof(Vector2) + sizeof(Color)) * numPositions;
-        uint8_t* data = instance()->getScratchBuffer<uint8_t>(size);
-
-        positions = (Vector2*)data;
-        colors    = (Color*)(data + sizeof(Vector2) * numPositions);
-    }
-    else
-        positions = instance()->getScratchBuffer<Vector2>(numPositions);
+    auto* coords = instance()->getScratchBuffer<Vector2>(numVertices);
 
     if (isTable)
     {
-        if (isTableOfTables)
+        for (int index = 0; index < numVertices; ++index)
         {
-            for (int index = 0; index < argc; index++)
-            {
-                lua_rawgeti(L, 1, index + 1);
+            lua_rawgeti(L, 1, (index * 2) + 1);
+            lua_rawgeti(L, 1, (index * 2) + 2);
 
-                for (int j = 1; j <= 6; j++)
-                    lua_rawgeti(L, -j, j);
+            coords[index].x = luax_checkfloat(L, -2);
+            coords[index].y = luax_checkfloat(L, -1);
 
-                positions[index].x = luax_checkfloat(L, -6);
-                positions[index].y = luax_checkfloat(L, -5);
-
-                colors[index].r = (float)luax_optnumberclamped01(L, -4, 1.0);
-                colors[index].g = (float)luax_optnumberclamped01(L, -3, 1.0);
-                colors[index].b = (float)luax_optnumberclamped01(L, -2, 1.0);
-                colors[index].a = (float)luax_optnumberclamped01(L, -1, 1.0);
-
-                lua_pop(L, 7);
-            }
-        }
-        else
-        {
-            for (int index = 0; index < numPositions; index++)
-            {
-                lua_rawgeti(L, 1, index * 2 + 1);
-                lua_rawgeti(L, 1, index * 2 + 2);
-
-                positions[index].x = luax_checkfloat(L, -2);
-                positions[index].y = luax_checkfloat(L, -1);
-
-                lua_pop(L, 2);
-            }
+            lua_pop(L, 2);
         }
     }
     else
     {
-        for (int index = 0; index < numPositions; index++)
+        for (int index = 0; index < numVertices; ++index)
         {
-            positions[index].x = luax_checkfloat(L, index * 2 + 1);
-            positions[index].y = luax_checkfloat(L, index * 2 + 2);
+            coords[index].x = luax_checkfloat(L, (index * 2) + 1);
+            coords[index].y = luax_checkfloat(L, (index * 2) + 2);
         }
     }
 
-    luax_catchexcept(L, [&]() { instance()->points(positions, colors, numPositions); });
+    luax_catchexcept(L, [&]() { instance()->points(coords, nullptr, numVertices); });
 
     return 0;
 }
@@ -1908,7 +2092,27 @@ int Wrap_Graphics::getScreens(lua_State* L)
 
 int Wrap_Graphics::getActiveScreen(lua_State* L)
 {
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "getActiveScreen() called from Lua\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+    
     auto& info = love::getScreenInfo(love::currentScreen);
+    
+#ifdef __WIIU__
+    FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile2) {
+        fprintf(logFile2, "getActiveScreen() - current screen: %d ('%.*s')\n", 
+               love::currentScreen, (int)info.name.size(), info.name.data());
+        fflush(logFile2);
+        fclose(logFile2);
+    }
+#endif
+    
     luax_pushstring(L, info.name);
 
     return 1;
@@ -1916,14 +2120,41 @@ int Wrap_Graphics::getActiveScreen(lua_State* L)
 
 int Wrap_Graphics::setActiveScreen(lua_State* L)
 {
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "setActiveScreen() called from Lua\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+    
     std::string name = luax_checkstring(L, 1);
     auto value       = love::getScreenId(name);
 
     if (value == INVALID_SCREEN)
         return luaL_error(L, "Invalid screen '%s'", name.c_str());
 
+#ifdef __WIIU__
+    FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile2) {
+        fprintf(logFile2, "setActiveScreen() - setting screen '%s' to: %d\n", name.c_str(), value);
+        fflush(logFile2);
+        fclose(logFile2);
+    }
+#endif
+
     love::currentScreen = value;
     instance()->setActiveScreen();
+
+#ifdef __WIIU__
+    FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile3) {
+        fprintf(logFile3, "setActiveScreen() completed\n");
+        fflush(logFile3);
+        fclose(logFile3);
+    }
+#endif
 
     return 0;
 }
@@ -2026,6 +2257,9 @@ static constexpr luaL_Reg functions[] =
     { "isActive",               Wrap_Graphics::isActive              },
     { "isGammaCorrect",         Wrap_Graphics::isGammaCorrect        },
     { "getRendererInfo",        Wrap_Graphics::getRendererInfo       },
+    { "getTextureFormats",      Wrap_Graphics::getTextureFormats     },
+    { "getSystemLimits",        Wrap_Graphics::getSystemLimits       },
+    { "getTextureTypes",        Wrap_Graphics::getTextureTypes       },
     { "getDPIScale",            Wrap_Graphics::getDPIScale           },
     { "setScissor",             Wrap_Graphics::setScissor            },
     { "intersectScissor",       Wrap_Graphics::intersectScissor      },
@@ -2064,18 +2298,18 @@ static constexpr luaL_Reg functions[] =
     { "points",                 Wrap_Graphics::points                },
     { "line",                   Wrap_Graphics::line                  },
 
-    { "newTexture",             Wrap_Graphics::newTexture            },
+    { "newTexture",                         Wrap_Graphics::newTexture            },
     { "newQuad",                Wrap_Graphics::newQuad               },
     { "newImage",               Wrap_Graphics::newImage              },
     { "newVideo",               Wrap_Graphics::newVideo              },
-    // { "newArrayTexture",        Wrap_Graphics::newArrayTexture       },
+    { "newCanvas",             Wrap_Graphics::newCanvas             },
 
-    // Shader functions
-    { "newShader",              Wrap_Graphics::newShader             },
-    { "setShader",              Wrap_Graphics::setShader             },
-    { "getShader",              Wrap_Graphics::getShader             },
+    // Canvas functions
+    { "setCanvas",              Wrap_Graphics::setCanvas             },
+    { "getCanvas",              Wrap_Graphics::getCanvas             },
 
     { "newTextBatch",           Wrap_Graphics::newTextBatch          },
+    { "newText",                Wrap_Graphics::newText               },
     { "newSpriteBatch",         Wrap_Graphics::newSpriteBatch        },
 
     { "newFont",                Wrap_Graphics::newFont               },
@@ -2116,6 +2350,8 @@ int Wrap_Graphics::open(lua_State* L)
     else
         instance->retain();
 
+
+
     WrappedModule module {};
     module.instance          = instance;
     module.name              = "graphics";
@@ -2127,140 +2363,174 @@ int Wrap_Graphics::open(lua_State* L)
     return luax_register_module(L, module);
 }
 
-int Wrap_Graphics::newShader(lua_State* L)
+int Wrap_Graphics::newCanvas(lua_State* L)
 {
-    luax_checkgraphicscreated(L);
-
-    std::vector<std::string> stages {};
-    ShaderBase::CompileOptions options {};
-
-    // Default vertex shader GLSL
-    std::string defaultVertexShader = R"(
-vec4 position(mat4 transform_projection, vec4 vertex_position)
-{
-    return transform_projection * vertex_position;
-}
-)";
-
-    // Default fragment shader GLSL  
-    std::string defaultFragmentShader = R"(
-vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
-{
-    return Texel(texture, texture_coords) * color;
-}
-)";
-
-    std::string vertexShaderCode = defaultVertexShader;
-    std::string fragmentShaderCode = defaultFragmentShader;
-
-    // Parse arguments
-    if (lua_type(L, 1) == LUA_TSTRING)
-    {
-        // Single argument - fragment shader code
-        fragmentShaderCode = luaL_checkstring(L, 1);
-        
-        if (lua_type(L, 2) == LUA_TSTRING)
-        {
-            // Two arguments - fragment and vertex shader
-            vertexShaderCode = fragmentShaderCode;
-            fragmentShaderCode = luaL_checkstring(L, 2);
-        }
-    }
-    else if (lua_type(L, 1) == LUA_TTABLE)
-    {
-        // Table with shader stages
-        lua_getfield(L, 1, "vertex");
-        if (lua_type(L, -1) == LUA_TSTRING)
-            vertexShaderCode = lua_tostring(L, -1);
-        lua_pop(L, 1);
-
-        lua_getfield(L, 1, "fragment");
-        if (lua_type(L, -1) == LUA_TSTRING)
-            fragmentShaderCode = lua_tostring(L, -1);
-        lua_pop(L, 1);
-
-        lua_getfield(L, 1, "pixel");
-        if (lua_type(L, -1) == LUA_TSTRING)
-            fragmentShaderCode = lua_tostring(L, -1);
-        lua_pop(L, 1);
-    }
-
-    ShaderBase* shader = nullptr;
+    int argCount = lua_gettop(L);
     
+    // Get default window dimensions if not specified
+    int width = 0, height = 0;
+    auto* graphics = instance();
+    if (graphics)
+    {
+        width = graphics->getPixelWidth();
+        height = graphics->getPixelHeight();
+    }
+    
+    // If no args, use window size
+    if (argCount == 0)
+    {
+        // canvas = love.graphics.newCanvas()
+        // Use default window size
+    }
+    else if (argCount >= 2)
+    {
+        // canvas = love.graphics.newCanvas(width, height [, settings])
+        width = luaL_checkint(L, 1);
+        height = luaL_checkint(L, 2);
+    }
+    
+    if (width <= 0 || height <= 0)
+    {
+        return luaL_error(L, "Canvas dimensions must be positive (got %d x %d)", width, height);
+    }
+    
+    // Create texture settings for render target
+    TextureBase::Settings settings;
+    settings.width = width;
+    settings.height = height;
+    settings.type = TEXTURE_2D;
+    settings.format = PIXELFORMAT_NORMAL; // Default format
+    settings.renderTarget = true; // This makes it a Canvas
+    settings.readable = true;
+    settings.mipmaps = TextureBase::MIPMAPS_NONE;
+    settings.msaa = 0;
+    settings.layers = 1;
+    
+    // TODO: Parse settings table if provided as 3rd argument
+    // For now just use defaults for Wii U compatibility
+    
+    TextureBase* texture = nullptr;
     luax_catchexcept(L, [&]() {
-        // Create temporary files for the shader source
-#ifdef __WIIU__
-        std::string tempVertexPath = "fs:/vol/external01/vertex_shader.glsl";
-        std::string tempFragmentPath = "fs:/vol/external01/fragment_shader.glsl";
-#else
-        std::string tempVertexPath = "/tmp/vertex_shader.glsl";
-        std::string tempFragmentPath = "/tmp/fragment_shader.glsl";
-#endif
-
-        // Write GLSL source to temporary files
-        FILE* vertexFile = fopen(tempVertexPath.c_str(), "w");
-        if (vertexFile)
-        {
-            fprintf(vertexFile, "%s", vertexShaderCode.c_str());
-            fclose(vertexFile);
-        }
-        else
-        {
-            luaL_error(L, "Failed to create temporary vertex shader file");
-        }
-
-        FILE* fragmentFile = fopen(tempFragmentPath.c_str(), "w");
-        if (fragmentFile)
-        {
-            fprintf(fragmentFile, "%s", fragmentShaderCode.c_str());
-            fclose(fragmentFile);
-        }
-        else
-        {
-            luaL_error(L, "Failed to create temporary fragment shader file");
-        }
-
-        stages.push_back(tempVertexPath);
-        stages.push_back(tempFragmentPath);
-
-        shader = instance()->newShader(stages, options);
-        
-        // Clean up temporary files
-        remove(tempVertexPath.c_str());
-        remove(tempFragmentPath.c_str());
+        texture = graphics->newTexture(settings, nullptr);
     });
-
-    luax_pushtype(L, shader);
-    shader->release();
-
+    
+    luax_pushtype(L, texture);
     return 1;
 }
 
-int Wrap_Graphics::setShader(lua_State* L)
+int Wrap_Graphics::setCanvas(lua_State* L)
 {
+    int argCount = lua_gettop(L);
+    auto* graphics = instance();
+    
     luax_checkgraphicscreated(L);
-
-    if (lua_isnoneornil(L, 1))
+    
+    if (argCount == 0)
     {
-        instance()->setShader();
-        return 0;
+        // love.graphics.setCanvas() - reset to screen
+        luax_catchexcept(L, [&]() {
+            graphics->setRenderTargets();
+        });
     }
-
-    ShaderBase* shader = luax_checktype<ShaderBase>(L, 1);
-    instance()->setShader(shader);
-
+    else if (argCount == 1)
+    {
+        if (lua_isnil(L, 1))
+        {
+            // love.graphics.setCanvas(nil) - reset to screen
+            luax_catchexcept(L, [&]() {
+                graphics->setRenderTargets();
+            });
+        }
+        else
+        {
+            // love.graphics.setCanvas(canvas)
+            TextureBase* canvas = luax_checktype<TextureBase>(L, 1);
+            
+            if (!canvas->isRenderTarget())
+            {
+                return luaL_error(L, "Texture is not a render target (Canvas)");
+            }
+            
+            luax_catchexcept(L, [&]() {
+                graphics->setRenderTargets(canvas);
+            });
+        }
+    }
+    else if (argCount == 2)
+    {
+        // love.graphics.setCanvas(canvas, mipmap) or love.graphics.setCanvas(canvas, slice)
+        TextureBase* canvas = luax_checktype<TextureBase>(L, 1);
+        int level = luaL_checkint(L, 2);
+        
+        if (!canvas->isRenderTarget())
+        {
+            return luaL_error(L, "Texture is not a render target (Canvas)");
+        }
+        
+        luax_catchexcept(L, [&]() {
+            graphics->setRenderTargets(canvas, 0, level); // slice=0, mipmap=level
+        });
+    }
+    else if (argCount == 3)
+    {
+        // love.graphics.setCanvas(canvas, slice, mipmap)
+        TextureBase* canvas = luax_checktype<TextureBase>(L, 1);
+        int slice = luaL_checkint(L, 2);
+        int mipmap = luaL_checkint(L, 3);
+        
+        if (!canvas->isRenderTarget())
+        {
+            return luaL_error(L, "Texture is not a render target (Canvas)");
+        }
+        
+        luax_catchexcept(L, [&]() {
+            graphics->setRenderTargets(canvas, slice, mipmap);
+        });
+    }
+    else
+    {
+        return luaL_error(L, "Too many arguments to setCanvas");
+    }
+    
     return 0;
 }
 
-int Wrap_Graphics::getShader(lua_State* L)
+int Wrap_Graphics::getCanvas(lua_State* L)
 {
+    auto* graphics = instance();
     luax_checkgraphicscreated(L);
-
-    ShaderBase* shader = instance()->getShader();
-    if (shader)
-        luax_pushtype(L, shader);
-    else
+    
+    const auto& targets = graphics->getActiveRenderTargets();
+    
+    if (targets.colors.empty() || targets.colors[0].texture == nullptr)
+    {
         lua_pushnil(L);
+    }
+    else
+    {
+        luax_pushtype(L, targets.colors[0].texture);
+    }
+    
+    return 1;
+}
 
+int Wrap_Graphics::getTextureFormats(lua_State* L)
+{
+    // Stub implementation - return empty table for now
+    lua_newtable(L);
+    return 1;
+}
+
+int Wrap_Graphics::getSystemLimits(lua_State* L)
+{
+    // Stub implementation - return empty table for now
+    lua_newtable(L);
+    return 1;
+}
+
+int Wrap_Graphics::getTextureTypes(lua_State* L)
+{
+    // Stub implementation - return empty table for now
+    lua_newtable(L);
     return 1;
 }

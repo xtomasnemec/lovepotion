@@ -123,18 +123,13 @@ namespace Wrap_Graphics
 
     int newVideo(lua_State* L);
 
-    // Shader functions
-    int newShader(lua_State* L);
-    
-    int setShader(lua_State* L);
-    
-    int getShader(lua_State* L);
-
-    int newTextureView(lua_State* L);
-
     int newArrayTexture(lua_State* L);
 
     int newCanvas(lua_State* L);
+
+    int setCanvas(lua_State* L);
+
+    int getCanvas(lua_State* L);
 
     int setFont(lua_State* L);
 
@@ -162,8 +157,10 @@ namespace Wrap_Graphics
 
     int newTextBatch(lua_State* L);
 
+    int newText(lua_State* L);  // Wrapper for newTextBatch to provide compatibility
+    
     int newSpriteBatch(lua_State* L);
-
+    
     int newFont(lua_State* L);
 
     int print(lua_State* L);

@@ -140,6 +140,23 @@ namespace love
 
     void Graphics::clear(OptionalColor color, OptionalInt stencil, OptionalDouble depth)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            if (color.hasValue) {
+                fprintf(logFile, "Graphics::clear() with color: R=%.2f G=%.2f B=%.2f A=%.2f\n", 
+                       color.value.r, color.value.g, color.value.b, color.value.a);
+            } else {
+                fprintf(logFile, "Graphics::clear() with background color\n");
+            }
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
+        // Ensure we're in a frame before clearing
+        gx2.ensureInFrame();
+        
         if (color.hasValue)
         {
             bool hasIntegerFormat = false;
@@ -173,6 +190,15 @@ namespace love
         }
 
         gx2.bindFramebuffer(&gx2.getInternalBackbuffer());
+        
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "Graphics::clear() completed\n");
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
     }
 
     GX2ColorBuffer Graphics::getInternalBackbuffer() const
@@ -225,13 +251,56 @@ namespace love
 
     void Graphics::present(void* screenshotCallbackData)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "Graphics::present() called - about to flush batched draws\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
         if (!this->isActive())
             return;
 
         if (this->isRenderTargetActive())
             throw love::Exception("present cannot be called while a render target is active.");
 
+        // CRITICAL: Flush all batched draws before presenting the frame
+        this->flushBatchedDraws();
+
+#ifdef __WIIU__
+        static int presentFlushCount = 0;
+        presentFlushCount++;
+        if (presentFlushCount <= 10 || presentFlushCount % 60 == 0) {
+            FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile2) {
+                fprintf(logFile2, "present() flushed batched draws (#%d)\n", presentFlushCount);
+                fflush(logFile2);
+                fclose(logFile2);
+            }
+        }
+#endif
+
+#ifdef __WIIU__
+        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3) {
+            fprintf(logFile3, "Graphics::present() - about to call gx2.present()\n");
+            fflush(logFile3);
+            fclose(logFile3);
+        }
+#endif
+
         gx2.present();
+
+#ifdef __WIIU__
+        FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile4) {
+            fprintf(logFile4, "Graphics::present() completed\n");
+            fflush(logFile4);
+            fclose(logFile4);
+        }
+#endif
 
         this->drawCalls        = 0;
         this->drawCallsBatched = 0;
@@ -567,6 +636,10 @@ namespace love
             fflush(logFile13);
             fclose(logFile13);
         }
+        
+        // Show that graphics system is ready
+        // Note: We cannot call drawLove2DLoading here as it might conflict with GX2
+        // Instead we'll log that graphics is ready for the main loop
 #endif
 
         return true;

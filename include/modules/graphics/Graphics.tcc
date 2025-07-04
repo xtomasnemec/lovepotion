@@ -460,6 +460,36 @@ namespace love
 
         Winding getFrontFaceWinding() const;
 
+        // Render target management
+        void setRenderTargets();
+        void setRenderTargets(TextureBase* canvas, int slice = 0, int mipmap = 0);
+        
+        // Convert RenderTargetsStrongRef to RenderTargets
+        RenderTargets convertToRenderTargets(const RenderTargetsStrongRef& strongTargets) const
+        {
+            RenderTargets targets;
+            targets.temporaryFlags = strongTargets.temporaryFlags;
+            
+            // Convert color targets
+            targets.colors.reserve(strongTargets.colors.size());
+            for (const auto& colorTarget : strongTargets.colors)
+            {
+                targets.colors.emplace_back(colorTarget.texture.get(), colorTarget.slice, colorTarget.mipmap);
+            }
+            
+            // Convert depth/stencil target
+            targets.depthStencil = RenderTarget(strongTargets.depthStencil.texture.get(), 
+                                              strongTargets.depthStencil.slice, 
+                                              strongTargets.depthStencil.mipmap);
+            
+            return targets;
+        }
+        
+        const RenderTargets getActiveRenderTargets() const
+        {
+            return convertToRenderTargets(this->states.back().renderTargets);
+        }
+
         virtual void setColorMask(ColorChannelMask mask) = 0;
 
         ColorChannelMask getColorMask() const;
@@ -645,6 +675,10 @@ namespace love
         int getWidth() const;
 
         int getHeight() const;
+
+        int getPixelWidth() const;
+
+        int getPixelHeight() const;
 
         void applyTransform(const Matrix4& transform);
 

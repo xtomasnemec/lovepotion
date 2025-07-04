@@ -14,6 +14,9 @@ dkp_track_assets(${PROJECT_NAME}_cafe_content
         nogame.png
 )
 
+# Game folder is bundled using manual fusing after build
+# No need to track as asset anymore
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     include
 )

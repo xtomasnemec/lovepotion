@@ -38,11 +38,10 @@ dir /b build
 
 echo Build complete! Check build\ directory for results.
 echo Build Type: %BUILD_TYPE%
-echo Main files should be:
-echo - build\lovepotion.rpx
-echo - build\lovepotion.wuhb
+echo Main file should be:
+echo - build\balatro.wuhb
 if "%BUILD_TYPE%"=="Debug" (
     echo.
-    echo Debug builds will write logs to SD card: /balatro_debug.log
+    echo Debug builds will write logs to SD card: /simple_debug.txt
 )
 pause

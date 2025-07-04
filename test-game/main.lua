@@ -11,7 +11,13 @@ function love.load()
     
     -- Basic test without shader first
     love.graphics.setBackgroundColor(0.1, 0.1, 0.1)
-    love.window.setTitle("LOVE Potion Comprehensive Test")
+    
+    -- Only set window title on non-Wii U platforms
+    if love.system.getOS() ~= "cafe" then
+        love.window.setTitle("LOVE Potion Comprehensive Test")
+    else
+        print("Wii U detected - skipping window title setting")
+    end
     
     -- Test asset loading
     testAssets()

@@ -11,6 +11,10 @@
 
 #include <algorithm>
 
+#ifdef __WIIU__
+#include <coreinit/time.h>
+#endif
+
 namespace love
 {
     // #region Startup
@@ -139,7 +143,15 @@ namespace love
     {
 #ifdef __WIIU__
         static int resumeCallCount = 0;
+        static uint64_t firstResumeTime = 0;
         resumeCallCount++;
+        
+        // Get current time for timing calculations
+        uint64_t currentTime = OSGetSystemTime();
+        if (firstResumeTime == 0) {
+            firstResumeTime = currentTime;
+        }
+        uint64_t elapsed = OSTicksToMilliseconds(currentTime - firstResumeTime);
         
         printf("[LUAX_RESUME] Starting lua_resume() call #%d with argc=%d\n", resumeCallCount, argc);
         fflush(stdout);
@@ -150,6 +162,14 @@ namespace love
             fprintf(logFile, "luax_resume() call #%d with argc=%d\n", resumeCallCount, argc);
             fflush(logFile);
             fclose(logFile);
+        }
+        
+        // Log timestamp to detect how long lua_resume takes
+        FILE* timeLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (timeLog) {
+            fprintf(timeLog, "lua_resume() call #%d starting at system time, elapsed: %lld ms\n", resumeCallCount, elapsed);
+            fflush(timeLog);
+            fclose(timeLog);
         }
         
         // Log current Lua stack state
@@ -191,23 +211,192 @@ namespace love
         }
 #endif
 
+        // CRITICAL FIX: We need to resume the thread, not the main state
+        // Get the thread from the top of the stack
+        lua_State* thread = nullptr;
+        int stackTop = lua_gettop(L);
+        
+        if (stackTop > 0 && lua_type(L, stackTop) == LUA_TTHREAD) {
+            thread = lua_tothread(L, stackTop);
+        }
+        
+        if (!thread) {
+            // Emergency fallback - this should not happen
+#ifdef __WIIU__
+            FILE* errorLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (errorLog) {
+                fprintf(errorLog, "CRITICAL ERROR: No thread found at top of stack in luax_resume!\n");
+                fprintf(errorLog, "Stack has %d items, top type: %s\n", stackTop, 
+                       stackTop > 0 ? lua_typename(L, lua_type(L, stackTop)) : "empty");
+                fflush(errorLog);
+                fclose(errorLog);
+            }
+#endif
+            return 2; // LUA_ERRRUN - Return error
+        }
+
+#ifdef __WIIU__
+        FILE* threadLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (threadLog) {
+            fprintf(threadLog, "About to resume thread (not main state) with argc=%d\n", argc);
+            int threadStackTop = lua_gettop(thread);
+            fprintf(threadLog, "Thread stack has %d items\n", threadStackTop);
+            
+            // Check thread status
+            int status = lua_status(thread);
+            fprintf(threadLog, "Thread status: %d", status);
+            if (status == 0) { // 0 = LUA_OK in older Lua versions
+                fprintf(threadLog, " (LUA_OK - can be resumed)\n");
+            } else if (status == 1) { // 1 = LUA_YIELD in Lua 5.1
+                fprintf(threadLog, " (LUA_YIELD - yielded)\n");
+            } else {
+                fprintf(threadLog, " (ERROR or unexpected status)\n");
+                // If thread is in error state, try to get error message
+                if (threadStackTop > 0 && lua_type(thread, -1) == LUA_TSTRING) {
+                    const char* error = lua_tostring(thread, -1);
+                    fprintf(threadLog, "Thread error: %s\n", error ? error : "unknown");
+                }
+            }
+            
+            fflush(threadLog);
+            fclose(threadLog);
+        }
+#endif
+
+#ifdef __WIIU__
+        FILE* preResumeLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (preResumeLog) {
+            fprintf(preResumeLog, "About to call lua_resume() with thread=%p, L=%p, argc=%d\n", thread, L, argc);
+            fflush(preResumeLog);
+            fclose(preResumeLog);
+        }
+        printf("[LUAX_RESUME] About to call lua_resume() - thread=%p, argc=%d\n", thread, argc);
+        fflush(stdout);
+#endif
+
+        // CRITICAL: Add crash protection around lua_resume
+        int result = -999; // Initialize to invalid value to detect if assignment fails
+        
+        // Store last known state information for debugging
+        static char lastLuaState[512] = {0};
+        static bool stateInitialized = false;
+        static uint64_t startTime = 0;
+        
+        if (!stateInitialized) {
+            snprintf(lastLuaState, sizeof(lastLuaState), "Initial lua_resume call - Thread: %p", thread);
+            stateInitialized = true;
+#ifdef __WIIU__
+            startTime = OSGetSystemTime();
+#endif
+        }
+        
+        // Calculate elapsed time since first resume
+        uint64_t currentElapsed = 0;
+#ifdef __WIIU__
+        currentElapsed = OSTicksToMilliseconds(OSGetSystemTime() - startTime);
+#endif
+        
+        // Update current state info
+        if (lua_gettop(thread) > 0) {
+            const char* typeName = lua_typename(thread, lua_type(thread, -1));
+            snprintf(lastLuaState, sizeof(lastLuaState), 
+                     "Thread: %p, Stack size: %d, Top type: %s, Time: %lld ms", 
+                     thread, lua_gettop(thread), typeName, currentElapsed);
+        } else {
+            snprintf(lastLuaState, sizeof(lastLuaState), 
+                     "Thread: %p, Stack empty, Time: %lld ms", thread, currentElapsed);
+        }
+        
+#ifdef __WIIU__
+        // Write the current state to a separate file for crash recovery
+        FILE* stateFile = fopen("fs:/vol/external01/lua_state.log", "w");
+        if (stateFile) {
+            fprintf(stateFile, "Last known Lua state before potential hang:\n");
+            fprintf(stateFile, "%s\n", lastLuaState);
+            fprintf(stateFile, "Time elapsed since first resume: %lld ms\n", currentElapsed);
+            fflush(stateFile);
+            fclose(stateFile);
+        }
+#endif
+        
+#ifdef __WIIU__
+        FILE* aboutToCallLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (aboutToCallLog) {
+            fprintf(aboutToCallLog, "=== ABOUT TO CALL lua_resume() ===\n");
+            fprintf(aboutToCallLog, "Thread: %p, argc: %d, result initialized to: %d\n", thread, argc, result);
+            fprintf(aboutToCallLog, "Time elapsed since first resume: %lld ms\n", currentElapsed);
+            fflush(aboutToCallLog);
+            fclose(aboutToCallLog);
+        }
+#endif
+        
+        try {
+#ifdef __WIIU__
+            printf("[LUAX_RESUME] Entering lua_resume call...\n");
+            fflush(stdout);
+            
+            FILE* enteringLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (enteringLog) {
+                fprintf(enteringLog, "=== ENTERING lua_resume() CALL ===\n");
+                fflush(enteringLog);
+                fclose(enteringLog);
+            }
+#endif
+
 #if LUA_VERSION_NUM >= 504
-        int result = lua_resume(L, nullptr, argc, nres);
+            result = lua_resume(thread, L, argc, nres);
 #elif LUA_VERSION_NUM >= 502
-        LOVE_UNUSED(nres);
-        int result = lua_resume(L, nullptr, argc);
+            LOVE_UNUSED(nres);
+            result = lua_resume(thread, L, argc);
 #else
-        LOVE_UNUSED(nres);
-        int result = lua_resume(L, argc);
+            LOVE_UNUSED(nres);
+            result = lua_resume(thread, argc);
+#endif
+
+#ifdef __WIIU__
+            printf("[LUAX_RESUME] lua_resume call completed normally\n");
+            fflush(stdout);
+            
+            FILE* completedLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (completedLog) {
+                fprintf(completedLog, "=== lua_resume() CALL COMPLETED ===\n");
+                fprintf(completedLog, "Result: %d\n", result);
+                fflush(completedLog);
+                fclose(completedLog);
+            }
+#endif
+        } catch (...) {
+#ifdef __WIIU__
+            FILE* crashLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (crashLog) {
+                fprintf(crashLog, "CRASH: Exception caught in lua_resume call!\n");
+                fflush(crashLog);
+                fclose(crashLog);
+            }
+            printf("[LUAX_RESUME] CRASH: Exception caught in lua_resume!\n");
+            fflush(stdout);
+#endif
+            return 2; // LUA_ERRRUN - Return error on crash
+        }
+
+#ifdef __WIIU__
+        FILE* postResumeLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (postResumeLog) {
+            fprintf(postResumeLog, "lua_resume() completed successfully with result=%d\n", result);
+            fflush(postResumeLog);
+            fclose(postResumeLog);
+        }
+        printf("[LUAX_RESUME] lua_resume() completed with result=%d\n", result);
+        fflush(stdout);
 #endif
 
 #ifdef __WIIU__
         // Log immediately after lua_resume returns
         printf("[LUAX_RESUME] lua_resume() call #%d returned %d", resumeCallCount, result);
-        if (result == LUA_YIELD) {
-            printf(" (LUA_YIELD - coroutine yielded)\n");
+        if (result == 1) { // 1 = LUA_YIELD in Lua 5.1
+            printf(" (LUA_YIELD - coroutine yielded - NORMAL)\n");
         } else if (result == 0) {
-            printf(" (LUA_OK - success)\n");
+            printf(" (LUA_OK - success/completed - UNEXPECTED)\n");
         } else {
             printf(" (ERROR - check for Lua error)\n");
         }
@@ -217,13 +406,40 @@ namespace love
         FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
         if (logFile2) {
             fprintf(logFile2, "lua_resume() call #%d returned %d", resumeCallCount, result);
-            if (result == LUA_YIELD) {
-                fprintf(logFile2, " (LUA_YIELD - coroutine yielded)\n");
+            if (result == 1) { // 1 = LUA_YIELD in Lua 5.1
+                fprintf(logFile2, " (LUA_YIELD - coroutine yielded - NORMAL)\n");
             } else if (result == 0) {
-                fprintf(logFile2, " (LUA_OK - success)\n");
+                fprintf(logFile2, " (LUA_OK - success/completed)\n");
+                fprintf(logFile2, "WARNING: Thread returned LUA_OK - main loop completed unexpectedly!\n");
+                fprintf(logFile2, "This means love.run() finished instead of yielding.\n");
+                
+                // Check what's on the thread stack after completion
+                int threadStackAfter = lua_gettop(thread);
+                fprintf(logFile2, "Thread stack after completion: %d items\n", threadStackAfter);
+                for (int i = 1; i <= threadStackAfter && i <= 5; i++) {
+                    int type = lua_type(thread, i);
+                    fprintf(logFile2, "  CompletedThread[%d]: %s\n", i, lua_typename(thread, type));
+                }
+                
+                // Check if there's an error message
+                if (threadStackAfter > 0 && lua_type(thread, -1) == LUA_TSTRING) {
+                    const char* msg = lua_tostring(thread, -1);
+                    fprintf(logFile2, "Thread has string on top: %s\n", msg ? msg : "(null)");
+                }
             } else {
                 fprintf(logFile2, " (ERROR - check for Lua error)\n");
+                
+                // Log the error details
+                if (lua_gettop(thread) > 0 && lua_type(thread, -1) == LUA_TSTRING) {
+                    const char* errorMsg = lua_tostring(thread, -1);
+                    fprintf(logFile2, "Error message: %s\n", errorMsg ? errorMsg : "(null)");
+                }
             }
+            
+            // Log thread status after resume
+            int threadStatus = lua_status(thread);
+            fprintf(logFile2, "Thread status after resume: %d\n", threadStatus);
+            
             fflush(logFile2);
             fclose(logFile2);
         }

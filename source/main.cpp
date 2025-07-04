@@ -6,6 +6,7 @@
 
 #ifdef __WIIU__
 #include "DebugLogger.hpp"
+#include "driver/EventQueue.hpp"
 #include <cstdio>
 #include <ctime>
 #endif
@@ -127,19 +128,30 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
         // this should allow "game" to be used in love.filesystem.setSource
         std::vector<const char*> args(argv, argv + argc);
 
-        /* if the game directory exists, add the arg */
+        /* if the game directory or game.love exists, add the arg */
         std::filesystem::path filepath = love::getApplicationPath(argv[0]);
-        if (std::filesystem::exists(filepath.parent_path().append("game")))
+        std::filesystem::path gameDir = filepath.parent_path().append("game");
+        std::filesystem::path gameLove = filepath.parent_path().append("game.love");
+        
+        if (std::filesystem::exists(gameDir))
         {
 #ifdef __WIIU__
             simpleLog("Found game directory, adding 'game' argument");
 #endif
             args.push_back("game");
         }
+        else if (std::filesystem::exists(gameLove))
+        {
+#ifdef __WIIU__
+            simpleLog("Found game.love file, adding 'game.love' argument");
+#endif
+            args.push_back("game.love");
+        }
 #ifdef __WIIU__
         else
         {
-            simpleLog("No game directory found, will use nogame screen");
+            simpleLog("No game directory or game.love found, assuming fused game");
+            args.push_back("--fused");
         }
 #endif
 
@@ -187,11 +199,121 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     lua_call(L, 1, 1);
 
 #ifdef __WIIU__
-    simpleLog("love.boot loaded, creating new thread...");
+    simpleLog("love.boot loaded, checking what was returned...");
+    
+    // Debug what love.boot returned
+    FILE* bootLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (bootLog) {
+        int stackTop = lua_gettop(L);
+        fprintf(bootLog, "=== LOVE.BOOT RETURN VALUE ANALYSIS ===\n");
+        fprintf(bootLog, "Stack has %d items after love.boot call\n", stackTop);
+        
+        if (stackTop > 0) {
+            int topType = lua_type(L, stackTop);
+            const char* typeName = lua_typename(L, topType);
+            fprintf(bootLog, "love.boot returned: %s\n", typeName);
+            
+            if (topType == LUA_TBOOLEAN) {
+                int b = lua_toboolean(L, stackTop);
+                fprintf(bootLog, "Boolean value: %s\n", b ? "true" : "false");
+                fprintf(bootLog, "ERROR: love.boot returned boolean instead of function!\n");
+                fprintf(bootLog, "This will cause the 'attempt to call boolean value' error!\n");
+            } else if (topType == LUA_TFUNCTION) {
+                fprintf(bootLog, "Function returned correctly\n");
+            } else {
+                fprintf(bootLog, "WARNING: Unexpected type returned by love.boot\n");
+            }
+        }
+        fprintf(bootLog, "=== END LOVE.BOOT ANALYSIS ===\n");
+        fflush(bootLog);
+        fclose(bootLog);
+    }
+    
+    simpleLog("Creating new thread and setting up stack...");
 #endif
 
-    lua_newthread(L);
-    lua_pushvalue(L, -2);
+    // For LOVE Potion, we need to handle the boot function differently
+    // The require("love.boot") returns a function that contains the main loop
+    // We need to create a thread and transfer the function to it
+    
+    lua_State* thread = lua_newthread(L);  // Create thread, pushes it on stack
+    
+    // Now we need to transfer the boot function to the thread
+    // Stack now: [args...] [boot_func] [thread]
+    // We want: [args...] [thread] [boot_func] (where boot_func is in thread's stack)
+    
+    lua_pushvalue(L, -2);  // Copy boot function: [args...] [boot_func] [thread] [boot_func]
+    lua_xmove(L, thread, 1);  // Move boot function to thread: [args...] [boot_func] [thread]
+    
+    // Now clean up the main stack - remove the original boot function
+    lua_remove(L, -2);  // Remove original boot function: [args...] [thread]
+
+#ifdef __WIIU__
+    // Debug the corrected thread setup
+    FILE* threadLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (threadLog) {
+        int stackTop = lua_gettop(L);
+        fprintf(threadLog, "=== CORRECTED THREAD SETUP ===\n");
+        fprintf(threadLog, "Stack has %d items after thread setup\n", stackTop);
+        
+        // Check main stack
+        for (int i = 1; i <= stackTop; i++) {
+            int type = lua_type(L, i);
+            const char* typeName = lua_typename(L, type);
+            fprintf(threadLog, "MainStack[%d]: %s", i, typeName);
+            
+            if (type == LUA_TBOOLEAN) {
+                int b = lua_toboolean(L, i);
+                fprintf(threadLog, " = %s", b ? "true" : "false");
+            } else if (type == LUA_TSTRING) {
+                const char* str = lua_tostring(L, i);
+                if (str) fprintf(threadLog, " = \"%s\"", str);
+            } else if (type == LUA_TTHREAD) {
+                lua_State* thread = lua_tothread(L, i);
+                if (thread) {
+                    int status = lua_status(thread);
+                    fprintf(threadLog, " (status: %d)", status);
+                    
+                    // Check thread stack
+                    int threadStackTop = lua_gettop(thread);
+                    fprintf(threadLog, " ThreadStack: %d items", threadStackTop);
+                    for (int j = 1; j <= threadStackTop && j <= 3; j++) {
+                        int threadType = lua_type(thread, j);
+                        fprintf(threadLog, " [%d]:%s", j, lua_typename(thread, threadType));
+                    }
+                }
+            } else if (type == LUA_TFUNCTION) {
+                fprintf(threadLog, " (function)");
+            }
+            fprintf(threadLog, "\n");
+        }
+        
+        // Check what's at the top (what will be resumed)
+        if (stackTop > 0) {
+            int topType = lua_type(L, stackTop);
+            fprintf(threadLog, "Top of stack (resume target): %s\n", lua_typename(L, topType));
+            
+            if (topType == LUA_TTHREAD) {
+                fprintf(threadLog, "GOOD: Thread is at top of stack for lua_resume\n");
+                lua_State* thread = lua_tothread(L, stackTop);
+                if (thread) {
+                    int threadStackTop = lua_gettop(thread);
+                    fprintf(threadLog, "Thread has %d items, should have boot function\n", threadStackTop);
+                    if (threadStackTop > 0) {
+                        int funcType = lua_type(thread, threadStackTop);
+                        fprintf(threadLog, "Thread top: %s\n", lua_typename(thread, funcType));
+                    }
+                }
+            } else {
+                fprintf(threadLog, "ERROR: Expected thread at top of stack!\n");
+            }
+        }
+        
+        fprintf(threadLog, "=== END THREAD SETUP ANALYSIS ===\n");
+        fflush(threadLog);
+        fclose(threadLog);
+    }
+#endif
 
     int position = lua_gettop(L);
     int results  = 0;
@@ -199,6 +321,7 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
 #ifdef __WIIU__
     simpleLog("Starting main loop...");
     love::DebugLogger::log("About to enter main loop with position=%d", position);
+    
     simpleLog("About to call first love::mainLoop()...");
 #endif
 
@@ -244,6 +367,19 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
             if (loopCount < 3)
             {
                 simpleLog("love::mainLoop() returned successfully");
+            }
+            
+            // Send resize event after first successful mainLoop call to ensure canvas initialization
+            if (loopCount == 0 && mainLoopResult)
+            {
+                simpleLog("Sending resize event to ensure canvas initialization...");
+                try {
+                    auto& eventQueue = love::EventQueue::getInstance();
+                    eventQueue.sendResize(800, 600);
+                    simpleLog("Resize event sent successfully");
+                } catch (...) {
+                    simpleLog("ERROR: Failed to send resize event");
+                }
             }
 #endif
             

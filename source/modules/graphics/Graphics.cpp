@@ -442,7 +442,35 @@ namespace love
         BatchedDrawState& state = this->batchedDrawState;
 
         if ((state.lastIndexCount == 0 && state.lastVertexCount == 0) || state.flushing)
+        {
+#ifdef __WIIU__
+            static int emptyFlushCount = 0;
+            emptyFlushCount++;
+            if (emptyFlushCount <= 5 || emptyFlushCount % 120 == 0) {
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    fprintf(logFile, "flushBatchedDraws() called but no draw data (empty flush #%d)\n", emptyFlushCount);
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+            }
+#endif
             return;
+        }
+
+#ifdef __WIIU__
+        static int realFlushCount = 0;
+        realFlushCount++;
+        if (realFlushCount <= 10 || realFlushCount % 60 == 0) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "flushBatchedDraws() ACTUALLY FLUSHING %d vertices, %d indices (flush #%d)\n", 
+                        state.lastVertexCount, state.lastIndexCount, realFlushCount);
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
 
         VertexAttributes attributes {};
         BufferBindings buffers {};
@@ -734,6 +762,16 @@ namespace love
         return info.height;
     }
 
+    int GraphicsBase::getPixelWidth() const
+    {
+        return this->pixelWidth;
+    }
+
+    int GraphicsBase::getPixelHeight() const
+    {
+        return this->pixelHeight;
+    }
+
     GraphicsBase::RendererInfo GraphicsBase::getRendererInfo() const
 
     {
@@ -823,6 +861,50 @@ namespace love
         }
 
         return false;
+    }
+
+    void GraphicsBase::setRenderTargets()
+    {
+        // Reset to screen/window rendering
+        RenderTargets targets;
+        // targets is empty, which means render to screen
+        
+        int pixelWidth = this->getPixelWidth();
+        int pixelHeight = this->getPixelHeight();
+        
+        this->flushBatchedDraws();
+        this->states.back().renderTargets = RenderTargetsStrongRef();
+        this->setRenderTargetsInternal(targets, pixelWidth, pixelHeight, false);
+    }
+
+    void GraphicsBase::setRenderTargets(TextureBase* canvas, int slice, int mipmap)
+    {
+        RenderTargets targets;
+        
+        if (canvas != nullptr)
+        {
+            if (!canvas->isRenderTarget())
+                throw love::Exception("Texture is not a render target (Canvas)");
+            
+            targets.colors.push_back(RenderTarget(canvas, slice, mipmap));
+        }
+        
+        int pixelWidth = canvas ? canvas->getPixelWidth() : this->getPixelWidth();
+        int pixelHeight = canvas ? canvas->getPixelHeight() : this->getPixelHeight();
+        
+        this->flushBatchedDraws();
+        
+        // Update strong refs
+        auto& strongTargets = this->states.back().renderTargets;
+        strongTargets.colors.clear();
+        strongTargets.depthStencil.texture.set(nullptr);
+        
+        if (canvas != nullptr)
+        {
+            strongTargets.colors.push_back(RenderTargetStrongRef(canvas, slice, mipmap));
+        }
+        
+        this->setRenderTargetsInternal(targets, pixelWidth, pixelHeight, false);
     }
 
     TextureBase* GraphicsBase::getDefaultTexture(TextureType type, DataBaseType dataType)

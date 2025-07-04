@@ -23,6 +23,8 @@
 
 #include <sysapp/launch.h>
 
+#include <vector>
+
 namespace love
 {
     // clang-format off
@@ -68,205 +70,128 @@ namespace love
         return DEFAULT_PATH;
     }
 
-    // --- Custom font rendering support ---
-    // TTF font rendering temporarily disabled for build compatibility.
-    // All text will use OSScreenPutFontEx (system font).
-    // #include <string>
-    // #include <vector>
-    // #include <cstring>
-    // #define STB_TRUETYPE_IMPLEMENTATION
-    // #include "stb_truetype.h"
-    // unsigned char* fontBuffer = nullptr;
-    // stbtt_fontinfo font;
-    // bool fontLoaded = false;
-    // void loadCustomFont() { /* disabled */ }
-
-    void loadCustomFont() { /* TTF font rendering disabled */ }
-
-    // Helper: Fill OSScreen buffer with RGB color
-    void fillScreenColor(OSScreenID screen, uint8_t r, uint8_t g, uint8_t b) {
-        uint32_t* buf = (uint32_t*)OSScreenGetBuffer(screen);
-        int width = OSScreenGetWidth(screen);
-        int height = OSScreenGetHeight(screen);
-        uint32_t color = (0xFF << 24) | (r << 16) | (g << 8) | b;
-        for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-                buf[y * width + x] = color;
-            }
-        }
-    }
-
-    void drawText(OSScreenID screen, int x, int y, const char* text) {
-        OSScreenPutFontEx(screen, x, y, text);
-    }
-
-    // Pixelart loading bar (simple blocky style)
-    void drawPixelartBar(OSScreenID screen, int x, int y, int width, int filled) {
-        // Draw filled blocks as "█", empty as "·"
-        std::string bar;
-        for (int i = 0; i < width; ++i) bar += (i < filled) ? "\xDB" : "·";
-        drawText(screen, x, y, bar.c_str());
-    }
-
-    // LÖVE2D-style loading screen (dark gray, centered bar, custom font placeholder)
-    void drawLove2DLoading(int step, int total, const char* status) {
-#ifdef __WIIU__
-        OSScreenID screens[2] = { SCREEN_TV, SCREEN_DRC };
-        for (int i = 0; i < 2; ++i) {
-            OSScreenID screen = screens[i];
-            // Fill with dark gray (RGB 32,32,32)
-            fillScreenColor(screen, 32, 32, 32);
-            int width = (screen == SCREEN_TV) ? 80 : 52;
-            // Status text (centered)
-            if (status) {
-                int x = (width - (int)strlen(status)) / 2;
-                drawText(screen, x, 10, status);
-            }
-            // Pixelart loading bar
-            int barLen = 32;
-            int filled = (step * barLen) / total;
-            int x = (width - barLen) / 2;
-            drawPixelartBar(screen, x, 14, barLen, filled);
-            OSScreenFlipBuffers(screen);
-        }
-        OSSleepTicks(OSMillisecondsToTicks(30));
-#endif
-    }
-
-    // Turquoise crash screen (RGB 7,151,176), error text and prompt, custom font placeholder
-    void drawCrashScreen(const char* error, const char* tb1, const char* tb2) {
-#ifdef __WIIU__
-        OSScreenID screens[2] = { SCREEN_TV, SCREEN_DRC };
-        for (int i = 0; i < 2; ++i) {
-            OSScreenID screen = screens[i];
-            fillScreenColor(screen, 7, 151, 176);
-            int width = (screen == SCREEN_TV) ? 80 : 52;
-            // Error text
-            if (error) {
-                int x = (width - (int)strlen(error)) / 2;
-                drawText(screen, x, 10, error);
-            }
-            // Traceback lines
-            if (tb1 && strlen(tb1) > 0) {
-                int x = (width - (int)strlen(tb1)) / 2;
-                drawText(screen, x, 12, tb1);
-            }
-            if (tb2 && strlen(tb2) > 0) {
-                int x = (width - (int)strlen(tb2)) / 2;
-                drawText(screen, x, 13, tb2);
-            }
-            // Prompt
-            const char* prompt = "Press B to exit...";
-            int x = (width - (int)strlen(prompt)) / 2;
-            drawText(screen, x, 20, prompt);
-            OSScreenFlipBuffers(screen);
-        }
-#endif
-    }
-
-    namespace {
-        void drawLoadingBar(float progress, const char* info, const char* error = nullptr) {
-#ifdef __WIIU__
-            OSScreenID screens[2] = { SCREEN_TV, SCREEN_DRC };
-            for (int i = 0; i < 2; ++i) {
-                OSScreenID screen = screens[i];
-                OSScreenClearBuffer(screen, 0);
-                if (info) {
-                    OSScreenPutFontEx(screen, 0, 2, info);
-                }
-                if (error) {
-                    OSScreenPutFontEx(screen, 0, 4, error);
-                }
-                int barWidth = 40;
-                int filled = (int)(progress * barWidth);
-                char bar[barWidth + 2];
-                for (int j = 0; j < barWidth; ++j) bar[j] = (j < filled) ? '#' : '-';
-                bar[barWidth] = '\0';
-                OSScreenPutFontEx(screen, 0, 6, bar);
-                OSScreenFlipBuffers(screen);
-            }
-            OSSleepTicks(OSMillisecondsToTicks(30));
-#endif
-        }
-    }
-
-    // Helper: Draw loading bar and status text to TV and GamePad
-    void drawLoadingBar(int step, int total, const char* status, const char* error = nullptr) {
-        static bool screenInited = false;
-        if (!screenInited) {
-            OSScreenInit();
-            screenInited = true;
-        }
-        OSScreenClearBuffer(SCREEN_TV, 0);
-        OSScreenClearBuffer(SCREEN_DRC, 0);
-        int tvWidth = 80;
-        int drcWidth = 52;
-        if (status) {
-            int x_tv = (tvWidth - (int)strlen(status)) / 2;
-            int x_drc = (drcWidth - (int)strlen(status)) / 2;
-            OSScreenPutFontEx(SCREEN_TV, x_tv, 10, status);
-            OSScreenPutFontEx(SCREEN_DRC, x_drc, 10, status);
-        }
-        if (error) {
-            int x_tv = (tvWidth - (int)strlen(error)) / 2;
-            int x_drc = (drcWidth - (int)strlen(error)) / 2;
-            OSScreenPutFontEx(SCREEN_TV, x_tv, 14, error);
-            OSScreenPutFontEx(SCREEN_DRC, x_drc, 14, error);
-        }
-        char bar[65] = {0};
-        int barLen = 50;
-        int filled = (step * barLen) / total;
-        for (int i = 0; i < barLen; ++i) bar[i] = (i < filled) ? '#' : '-';
-        bar[barLen] = '\0';
-        int x_tv = (tvWidth - barLen) / 2;
-        int x_drc = (drcWidth - barLen) / 2;
-        OSScreenPutFontEx(SCREEN_TV, x_tv, 12, bar);
-        OSScreenPutFontEx(SCREEN_DRC, x_drc, 12, bar);
-        OSScreenFlipBuffers(SCREEN_TV);
-        OSScreenFlipBuffers(SCREEN_DRC);
-    }
-
     int preInit()
     {
         // Initialize debug logger (safe to call multiple times)
         DebugLogger::init();
         DebugLogger::log("preInit() called");
-        loadCustomFont(); // Load TTF font for custom rendering
-        int step = 0;
-        int total = (int)services.size();
-        drawLove2DLoading(step, total, "Starting initialization...");
 
+        /* we aren't running Aroma */
+        // if (getApplicationPath().empty())
+        //     return -1;
+
+        // Initialize services first without loading screen
+        int serviceCount = 0;
         for (const auto& service : services)
         {
-            char status[128];
-            snprintf(status, sizeof(status), "Initializing: %s", service.name);
-            drawLove2DLoading(step, total, status);
-            DebugLogger::log("%s", status);
+            DebugLogger::log("Initializing service: %s", service.name);
+            
             if (!service.init().success())
             {
-                char error[128];
-                snprintf(error, sizeof(error), "Failed to initialize: %s", service.name);
-                drawLove2DLoading(step, total, status);
-                // Also show error as overlay
-                drawCrashScreen(error, nullptr, nullptr);
-                DebugLogger::log("%s", error);
-                // Wait for user to see error
-                for (int i = 0; i < 180; ++i) OSSleepTicks(OSMillisecondsToTicks(10));
+                DebugLogger::log("Failed to initialize service: %s", service.name);
                 return -1;
             }
             DebugLogger::log("Service %s initialized successfully", service.name);
-            ++step;
         }
-        drawLove2DLoading(total, total, "Initialization complete.");
-        OSSleepTicks(OSMillisecondsToTicks(200));
 
         WPADEnableWiiRemote(true);
         WPADEnableURCC(true);
         DebugLogger::log("WPAD initialized");
+
         Console::setMainCoreId(OSGetCoreId());
         DebugLogger::log("Main core ID set to: %u", OSGetCoreId());
+
         DebugLogger::log("preInit() completed successfully");
         return 0;
+    }
+
+    // Enhanced crash screen: shows error type, message, function info, and traceback
+    void drawCrashScreen(const char* error, const char* errorType, const char* functionInfo, const char* tb1, const char* tb2, const char* tb3) {
+#ifdef __WIIU__
+        static bool screenInited = false;
+        if (!screenInited) {
+            OSScreenInit();
+            screenInited = true;
+        }
+        OSScreenID screens[2] = { SCREEN_TV, SCREEN_DRC };
+        for (int i = 0; i < 2; ++i) {
+            OSScreenID screen = screens[i];
+            OSScreenClearBufferEx(screen, 0); // Black background
+            int width = (screen == SCREEN_TV) ? 80 : 52;
+            int currentLine = 5;
+            
+            // Title
+            const char* title = "=== LUA CRASH DETECTED ===";
+            int x = (width - (int)strlen(title)) / 2;
+            OSScreenPutFontEx(screen, x, currentLine++, title);
+            currentLine++; // blank line
+            
+            // Error type
+            if (errorType && strlen(errorType) > 0) {
+                char typeDisplay[100];
+                snprintf(typeDisplay, sizeof(typeDisplay), "Type: %s", errorType);
+                x = (width - (int)strlen(typeDisplay)) / 2;
+                OSScreenPutFontEx(screen, x, currentLine++, typeDisplay);
+            }
+            
+            // Error message
+            if (error && strlen(error) > 0) {
+                char truncatedError[width - 10];
+                strncpy(truncatedError, error, sizeof(truncatedError) - 1);
+                truncatedError[sizeof(truncatedError) - 1] = '\0';
+                x = (width - (int)strlen(truncatedError)) / 2;
+                OSScreenPutFontEx(screen, x, currentLine++, truncatedError);
+            }
+            currentLine++; // blank line
+            
+            // Function info
+            if (functionInfo && strlen(functionInfo) > 0) {
+                char truncatedFunc[width - 10];
+                strncpy(truncatedFunc, functionInfo, sizeof(truncatedFunc) - 1);
+                truncatedFunc[sizeof(truncatedFunc) - 1] = '\0';
+                x = (width - (int)strlen(truncatedFunc)) / 2;
+                OSScreenPutFontEx(screen, x, currentLine++, truncatedFunc);
+                currentLine++; // blank line
+            }
+            
+            // Traceback header
+            const char* tbHeader = "Traceback:";
+            x = (width - (int)strlen(tbHeader)) / 2;
+            OSScreenPutFontEx(screen, x, currentLine++, tbHeader);
+            
+            // Traceback lines
+            if (tb1 && strlen(tb1) > 0) {
+                char truncatedTb1[width - 5];
+                strncpy(truncatedTb1, tb1, sizeof(truncatedTb1) - 1);
+                truncatedTb1[sizeof(truncatedTb1) - 1] = '\0';
+                OSScreenPutFontEx(screen, 2, currentLine++, truncatedTb1);
+            }
+            if (tb2 && strlen(tb2) > 0) {
+                char truncatedTb2[width - 5];
+                strncpy(truncatedTb2, tb2, sizeof(truncatedTb2) - 1);
+                truncatedTb2[sizeof(truncatedTb2) - 1] = '\0';
+                OSScreenPutFontEx(screen, 2, currentLine++, truncatedTb2);
+            }
+            if (tb3 && strlen(tb3) > 0) {
+                char truncatedTb3[width - 5];
+                strncpy(truncatedTb3, tb3, sizeof(truncatedTb3) - 1);
+                truncatedTb3[sizeof(truncatedTb3) - 1] = '\0';
+                OSScreenPutFontEx(screen, 2, currentLine++, truncatedTb3);
+            }
+            
+            currentLine += 2; // space before prompt
+            
+            // Instructions
+            const char* prompt1 = "Check simple_debug.log for full details";
+            const char* prompt2 = "Press B to exit...";
+            x = (width - (int)strlen(prompt1)) / 2;
+            OSScreenPutFontEx(screen, x, currentLine++, prompt1);
+            x = (width - (int)strlen(prompt2)) / 2;
+            OSScreenPutFontEx(screen, x, currentLine, prompt2);
+            
+            OSScreenFlipBuffersEx(screen);
+        }
+#endif
     }
 
     static bool isRunning()
@@ -363,6 +288,139 @@ namespace love
             }
 #endif
             DebugLogger::log("About to call luax_resume()...");
+            
+            // Pre-execution stack analysis
+            int preStackTop = lua_gettop(L);
+            DebugLogger::log("Pre-execution stack analysis: %d items", preStackTop);
+            
+#ifdef __WIIU__
+            FILE* preLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (preLog) {
+                fprintf(preLog, "=== PRE-EXECUTION STACK ANALYSIS ===\n");
+                fprintf(preLog, "Stack has %d items before luax_resume()\n", preStackTop);
+                
+                for (int i = 1; i <= preStackTop; i++) {
+                    int type = lua_type(L, i);
+                    const char* typeName = lua_typename(L, type);
+                    fprintf(preLog, "Pre-Stack[%d]: %s", i, typeName);
+                    
+                    if (type == LUA_TSTRING) {
+                        const char* str = lua_tostring(L, i);
+                        if (str) fprintf(preLog, " = \"%s\"", str);
+                    } else if (type == LUA_TNUMBER) {
+                        double num = lua_tonumber(L, i);
+                        fprintf(preLog, " = %g", num);
+                    } else if (type == LUA_TBOOLEAN) {
+                        int b = lua_toboolean(L, i);
+                        fprintf(preLog, " = %s", b ? "true" : "false");
+                    } else if (type == LUA_TFUNCTION) {
+                        lua_Debug ar;
+                        lua_pushvalue(L, i); // Copy function to stack top
+                        if (lua_getinfo(L, ">n", &ar)) {
+                            fprintf(preLog, " (function: %s)", ar.name ? ar.name : "anonymous");
+                        }
+                    }
+                    fprintf(preLog, "\n");
+                }
+                
+                // Check what's at the top of the stack (what we're trying to resume)
+                if (preStackTop > 0) {
+                    int topType = lua_type(L, preStackTop);
+                    fprintf(preLog, "Top of stack (resume target): %s\n", lua_typename(L, topType));
+                    
+                    // CRITICAL: Check if we're trying to resume a non-thread
+                    if (topType != LUA_TTHREAD) {
+                        fprintf(preLog, "ERROR: Attempting to resume a %s instead of a thread!\n", lua_typename(L, topType));
+                        fprintf(preLog, "This will cause 'attempt to call a boolean value' error.\n");
+                        
+                        // Look for the actual thread in the stack
+                        for (int k = 1; k <= preStackTop; k++) {
+                            if (lua_type(L, k) == LUA_TTHREAD) {
+                                fprintf(preLog, "Found thread at stack position %d\n", k);
+                                lua_State* foundThread = lua_tothread(L, k);
+                                if (foundThread) {
+                                    int threadStatus = lua_status(foundThread);
+                                    fprintf(preLog, "Thread status: %d\n", threadStatus);
+                                }
+                                break;
+                            }
+                        }
+                    } else {
+                        // It's a thread, analyze it
+                        lua_State* thread = lua_tothread(L, preStackTop);
+                        if (thread) {
+                            int status = lua_status(thread);
+                            switch (status) {
+                                case 0: fprintf(preLog, "OK/SUSPENDED"); break;
+                                case 1: fprintf(preLog, "YIELDED"); break; // LUA_YIELD
+                                case LUA_ERRRUN: fprintf(preLog, "RUNTIME_ERROR"); break;
+                                case LUA_ERRSYNTAX: fprintf(preLog, "SYNTAX_ERROR"); break;
+                                case LUA_ERRMEM: fprintf(preLog, "MEMORY_ERROR"); break;
+                                case LUA_ERRERR: fprintf(preLog, "ERROR_HANDLER_ERROR"); break;
+                                default: fprintf(preLog, "UNKNOWN(%d)", status); break;
+                            }
+                            fprintf(preLog, "\n");
+                            
+                            // Check thread stack
+                            int threadStackTop = lua_gettop(thread);
+                            fprintf(preLog, "Thread stack has %d items\n", threadStackTop);
+                            for (int j = 1; j <= threadStackTop && j <= 5; j++) {
+                                int threadType = lua_type(thread, j);
+                                fprintf(preLog, "  Thread[%d]: %s", j, lua_typename(thread, threadType));
+                                if (threadType == LUA_TBOOLEAN) {
+                                    int b = lua_toboolean(thread, j);
+                                    fprintf(preLog, " = %s", b ? "true" : "false");
+                                }
+                                fprintf(preLog, "\n");
+                            }
+                        }
+                    }
+                }
+                
+                fprintf(preLog, "=== END PRE-EXECUTION ANALYSIS ===\n");
+                fflush(preLog);
+                fclose(preLog);
+            }
+#endif
+            
+            // SAFETY CHECK: Verify we're resuming a thread, not a boolean
+            if (preStackTop > 0) {
+                int topType = lua_type(L, preStackTop);
+                if (topType != LUA_TTHREAD) {
+                    DebugLogger::log("CRITICAL ERROR: Attempting to resume %s instead of thread!", lua_typename(L, topType));
+                    
+#ifdef __WIIU__
+                    FILE* errorLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (errorLog) {
+                        fprintf(errorLog, "=== CRITICAL STACK ERROR DETECTED ===\n");
+                        fprintf(errorLog, "Attempting to resume %s instead of thread!\n", lua_typename(L, topType));
+                        fprintf(errorLog, "This would cause 'attempt to call a boolean value' error.\n");
+                        
+                        // Show the problematic stack
+                        for (int i = 1; i <= preStackTop; i++) {
+                            int type = lua_type(L, i);
+                            fprintf(errorLog, "Stack[%d]: %s", i, lua_typename(L, type));
+                            if (type == LUA_TBOOLEAN) {
+                                int b = lua_toboolean(L, i);
+                                fprintf(errorLog, " = %s", b ? "true" : "false");
+                            }
+                            fprintf(errorLog, "\n");
+                        }
+                        
+                        fprintf(errorLog, "=== STACK ERROR PREVENTION ===\n");
+                        fflush(errorLog);
+                        fclose(errorLog);
+                    }
+#endif
+                    
+                    // Emergency exit instead of crashing
+                    DebugLogger::log("Emergency exit to prevent Lua crash");
+                    SYSLaunchMenu();
+                    s_Shutdown = true;
+                    return false;
+                }
+            }
+            
             const auto resumeResult = luax_resume(L, argc, nres);
 #ifdef __WIIU__
             FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
@@ -374,27 +432,205 @@ namespace love
 #endif
             DebugLogger::log("luax_resume() returned %d", resumeResult);
             
-            const auto yielding = (resumeResult == LUA_YIELD);
+            const auto yielding = (resumeResult == 1); // LUA_YIELD
             DebugLogger::log("yielding = %s", yielding ? "true" : "false");
 
             if (!yielding)
             {
+                DebugLogger::log("=== CRITICAL: LUA THREAD COMPLETED/ERROR ===");
+                DebugLogger::log("luax_resume returned %d (not yielding)", resumeResult);
+                
+#ifdef __WIIU__
+                FILE* criticalLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (criticalLog) {
+                    fprintf(criticalLog, "=== CRITICAL: LUA THREAD COMPLETED/ERROR ===\n");
+                    fprintf(criticalLog, "luax_resume returned %d (not yielding)\n", resumeResult);
+                    
+                    if (resumeResult == 0) {
+                        fprintf(criticalLog, "LUA_OK: The main loop function COMPLETED instead of yielding!\n");
+                        fprintf(criticalLog, "This is why Lua execution stops after loading.\n");
+                        fprintf(criticalLog, "The love.run() function should yield continuously, not return.\n");
+                    } else {
+                        fprintf(criticalLog, "Lua error occurred: %d\n", resumeResult);
+                    }
+                    
+                    fflush(criticalLog);
+                    fclose(criticalLog);
+                }
+#endif
+                DebugLogger::log("=== THREAD COMPLETED ANALYSIS ===");
+                DebugLogger::log("Resume result: %d (0=LUA_OK, 1=LUA_YIELD, 2=LUA_ERRRUN)", resumeResult);
+                
+                if (resumeResult == 0) { // LUA_OK
+                    DebugLogger::log("DIAGNOSIS: Lua thread completed normally (returned)");
+                    DebugLogger::log("This means the boot function finished executing and returned a value");
+                    DebugLogger::log("Expected: Thread should yield indefinitely, not complete");
+                    DebugLogger::log("CAUSE: The main loop in boot.lua exited instead of yielding");
+                }
+                
+                // FALLBACK LOOP: When Lua stops, show a diagnostic black screen with text
+                DebugLogger::log("=== ENTERING C++ FALLBACK LOOP ===");
+                DebugLogger::log("Lua has stopped running. Displaying diagnostic screen.");
+                
+#ifdef __WIIU__
+                FILE* fallbackLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (fallbackLog) {
+                    fprintf(fallbackLog, "=== ENTERING C++ FALLBACK LOOP ===\n");
+                    fprintf(fallbackLog, "Displaying black screen with diagnostic text\n");
+                    fflush(fallbackLog);
+                    fclose(fallbackLog);
+                }
+                
+                // Initialize OSScreen for fallback display
+                static bool fallbackScreenInited = false;
+                if (!fallbackScreenInited) {
+                    OSScreenInit();
+                    fallbackScreenInited = true;
+                }
+                
+                // Fallback loop variables
+                VPADStatus vpad;
+                KPADStatus kpad;
+                bool fallbackRunning = true;
+                int fallbackFrameCount = 0;
+                
+                while (fallbackRunning && isRunning()) {
+                    // Handle input
+                    VPADRead(VPAD_CHAN_0, &vpad, 1, NULL);
+                    KPADRead(WPAD_CHAN_0, &kpad, 1);
+                    
+                    // Exit fallback loop if HOME button is pressed
+                    if ((vpad.hold & VPAD_BUTTON_HOME) || (kpad.hold & WPAD_BUTTON_HOME)) {
+                        fallbackRunning = false;
+                        s_Shutdown = true;
+                        break;
+                    }
+                    
+                    // Draw diagnostic screen on both TV and GamePad
+                    OSScreenID screens[2] = { SCREEN_TV, SCREEN_DRC };
+                    for (int i = 0; i < 2; ++i) {
+                        OSScreenID screen = screens[i];
+                        OSScreenClearBufferEx(screen, 0); // Black background
+                        
+                        int width = (screen == SCREEN_TV) ? 80 : 52;
+                        int currentLine = 5;
+                        
+                        // Title
+                        const char* title = "=== LOVE POTION DIAGNOSTIC ===";
+                        int x = (width - (int)strlen(title)) / 2;
+                        OSScreenPutFontEx(screen, x, currentLine++, title);
+                        currentLine++; // blank line
+                        
+                        // Status message
+                        const char* status = "Lua main loop has stopped running";
+                        x = (width - (int)strlen(status)) / 2;
+                        OSScreenPutFontEx(screen, x, currentLine++, status);
+                        currentLine++; // blank line
+                        
+                        // Reason for stopping
+                        if (resumeResult == 0) {
+                            const char* reason = "Reason: Lua thread completed (did not yield)";
+                            x = (width - (int)strlen(reason)) / 2;
+                            OSScreenPutFontEx(screen, x, currentLine++, reason);
+                            
+                            const char* solution = "Solution: Check love.run() implementation";
+                            x = (width - (int)strlen(solution)) / 2;
+                            OSScreenPutFontEx(screen, x, currentLine++, solution);
+                        } else {
+                            const char* reason = "Reason: Lua error occurred";
+                            x = (width - (int)strlen(reason)) / 2;
+                            OSScreenPutFontEx(screen, x, currentLine++, reason);
+                            
+                            char errorCode[50];
+                            snprintf(errorCode, sizeof(errorCode), "Error code: %d", resumeResult);
+                            x = (width - (int)strlen(errorCode)) / 2;
+                            OSScreenPutFontEx(screen, x, currentLine++, errorCode);
+                        }
+                        
+                        currentLine += 2; // space
+                        
+                        // Debug info
+                        char frameInfo[50];
+                        snprintf(frameInfo, sizeof(frameInfo), "Fallback frame: %d", fallbackFrameCount);
+                        x = (width - (int)strlen(frameInfo)) / 2;
+                        OSScreenPutFontEx(screen, x, currentLine++, frameInfo);
+                        
+                        currentLine += 2; // space
+                        
+                        // Instructions
+                        const char* instruction1 = "Check simple_debug.log for details";
+                        const char* instruction2 = "Press HOME to exit";
+                        x = (width - (int)strlen(instruction1)) / 2;
+                        OSScreenPutFontEx(screen, x, currentLine++, instruction1);
+                        x = (width - (int)strlen(instruction2)) / 2;
+                        OSScreenPutFontEx(screen, x, currentLine, instruction2);
+                        
+                        OSScreenFlipBuffersEx(screen);
+                    }
+                    
+                    fallbackFrameCount++;
+                    
+                    // Log every 60 frames
+                    if (fallbackFrameCount % 60 == 0) {
+                        FILE* fallbackFrameLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+                        if (fallbackFrameLog) {
+                            fprintf(fallbackFrameLog, "Fallback loop frame %d\n", fallbackFrameCount);
+                            fflush(fallbackFrameLog);
+                            fclose(fallbackFrameLog);
+                        }
+                    }
+                    
+                    // Small delay to prevent excessive CPU usage
+                    OSSleepTicks(OSMillisecondsToTicks(16)); // ~60 FPS
+                }
+                
+                DebugLogger::log("=== EXITING C++ FALLBACK LOOP ===");
+                
+                FILE* exitLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (exitLog) {
+                    fprintf(exitLog, "=== EXITING C++ FALLBACK LOOP ===\n");
+                    fprintf(exitLog, "Fallback loop ran for %d frames\n", fallbackFrameCount);
+                    fflush(exitLog);
+                    fclose(exitLog);
+                }
+#endif
                 // Check if there was a Lua error
                 if (resumeResult != 0) // LUA_OK is 0, any non-zero value is an error
                 {
                     const char* errorMsg = lua_tostring(L, -1);
                     std::string errorText = errorMsg ? errorMsg : "Unknown Lua error";
                     std::string traceback;
-                    // Get traceback if available
+                    std::string fullStackDump;
+                    
+                    // Get detailed error type information
+                    const char* errorTypeStr = "UNKNOWN";
+                    switch (resumeResult) {
+                        case LUA_ERRRUN: errorTypeStr = "RUNTIME_ERROR"; break;
+                        case LUA_ERRMEM: errorTypeStr = "MEMORY_ERROR"; break;
+                        case LUA_ERRERR: errorTypeStr = "ERROR_HANDLER_ERROR"; break;
+                        case LUA_ERRSYNTAX: errorTypeStr = "SYNTAX_ERROR"; break;
+                        case 1: errorTypeStr = "YIELD"; break; // LUA_YIELD
+                        default: errorTypeStr = "OTHER_ERROR"; break;
+                    }
+                    
+                    // Get full stack information
+                    int stackTop = lua_gettop(L);
+                    char stackInfo[512];
+                    snprintf(stackInfo, sizeof(stackInfo), "Stack top: %d", stackTop);
+                    fullStackDump = stackInfo;
+                    
+                    // Get enhanced traceback with more detail
                     lua_getglobal(L, "debug");
                     if (lua_istable(L, -1))
                     {
                         lua_getfield(L, -1, "traceback");
                         if (lua_isfunction(L, -1))
                         {
-                            lua_pushvalue(L, -3); // error message
-                            lua_pushinteger(L, 2);
+                            // Get detailed traceback starting from level 0
+                            lua_pushstring(L, errorText.c_str());
+                            lua_pushinteger(L, 0); // Start from level 0 to get more detail
                             lua_call(L, 2, 1);
+                            
                             const char* tb = lua_tostring(L, -1);
                             if (tb) traceback = tb;
                             lua_pop(L, 1); // pop traceback result
@@ -409,22 +645,232 @@ namespace love
                     {
                         lua_pop(L, 1); // pop non-table
                     }
-                    DebugLogger::log("Lua Error: %s", errorText.c_str());
-                    if (!traceback.empty()) DebugLogger::log("Lua Traceback: %s", traceback.c_str());
-
+                    
+                    // Get additional stack frame information
+                    std::string stackFrames;
+                    for (int level = 0; level < 10; level++) {
+                        lua_Debug ar;
+                        if (lua_getstack(L, level, &ar)) {
+                            if (lua_getinfo(L, "Slnt", &ar)) {
+                                char frameInfo[512];
+                                snprintf(frameInfo, sizeof(frameInfo), 
+                                        "Frame[%d]: %s:%d in function '%s' (what=%s, namewhat=%s)\n",
+                                        level,
+                                        ar.source ? ar.source : "?",
+                                        ar.currentline,
+                                        ar.name ? ar.name : "?",
+                                        ar.what ? ar.what : "?",
+                                        ar.namewhat ? ar.namewhat : "?");
+                                stackFrames += frameInfo;
+                            }
+                        } else {
+                            break; // No more stack frames
+                        }
+                    }
+                    
+                    // Also check if we have a thread and analyze its stack
+                    std::string threadAnalysis;
+                    for (int i = 1; i <= stackTop; i++) {
+                        if (lua_type(L, i) == LUA_TTHREAD) {
+                            lua_State* thread = lua_tothread(L, i);
+                            if (thread) {
+                                char threadInfo[1024];
+                                snprintf(threadInfo, sizeof(threadInfo), "Thread[%d] analysis:\n", i);
+                                threadAnalysis += threadInfo;
+                                
+                                int threadStackTop = lua_gettop(thread);
+                                snprintf(threadInfo, sizeof(threadInfo), "  Thread stack: %d items\n", threadStackTop);
+                                threadAnalysis += threadInfo;
+                                
+                                // Check thread stack frames
+                                for (int level = 0; level < 5; level++) {
+                                    lua_Debug threadAr;
+                                    if (lua_getstack(thread, level, &threadAr)) {
+                                        if (lua_getinfo(thread, "Slnt", &threadAr)) {
+                                            snprintf(threadInfo, sizeof(threadInfo),
+                                                    "  ThreadFrame[%d]: %s:%d in '%s' (%s %s)\n",
+                                                    level,
+                                                    threadAr.source ? threadAr.source : "?",
+                                                    threadAr.currentline,
+                                                    threadAr.name ? threadAr.name : "?",
+                                                    threadAr.what ? threadAr.what : "?",
+                                                    threadAr.namewhat ? threadAr.namewhat : "?");
+                                            threadAnalysis += threadInfo;
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                
+                                // Check what's on thread stack that might be the boolean
+                                for (int j = 1; j <= threadStackTop && j <= 10; j++) {
+                                    int threadType = lua_type(thread, j);
+                                    snprintf(threadInfo, sizeof(threadInfo), "  ThreadStack[%d]: %s", j, lua_typename(thread, threadType));
+                                    if (threadType == LUA_TBOOLEAN) {
+                                        int b = lua_toboolean(thread, j);
+                                        snprintf(threadInfo + strlen(threadInfo), sizeof(threadInfo) - strlen(threadInfo), " = %s", b ? "true" : "false");
+                                    } else if (threadType == LUA_TSTRING) {
+                                        const char* str = lua_tostring(thread, j);
+                                        if (str && strlen(str) < 50) {
+                                            snprintf(threadInfo + strlen(threadInfo), sizeof(threadInfo) - strlen(threadInfo), " = \"%s\"", str);
+                                        }
+                                    }
+                                    threadAnalysis += threadInfo;
+                                    threadAnalysis += "\n";
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Get current function info with more detail
+                    std::string currentFunction = "unknown";
+                    lua_Debug ar;
+                    if (lua_getstack(L, 1, &ar)) { // Try level 1 first for the actual error location
+                        if (lua_getinfo(L, "Slnt", &ar)) {
+                            char funcInfo[512];
+                            snprintf(funcInfo, sizeof(funcInfo), "%s:%d in %s (%s %s)", 
+                                    ar.source ? ar.source : "?", 
+                                    ar.currentline,
+                                    ar.name ? ar.name : "anonymous",
+                                    ar.what ? ar.what : "?",
+                                    ar.namewhat ? ar.namewhat : "");
+                            currentFunction = funcInfo;
+                        }
+                    } else if (lua_getstack(L, 0, &ar)) { // Fallback to level 0
+                        if (lua_getinfo(L, "Slnt", &ar)) {
+                            char funcInfo[512];
+                            snprintf(funcInfo, sizeof(funcInfo), "%s:%d in %s (%s %s)", 
+                                    ar.source ? ar.source : "?", 
+                                    ar.currentline,
+                                    ar.name ? ar.name : "anonymous",
+                                    ar.what ? ar.what : "?",
+                                    ar.namewhat ? ar.namewhat : "");
+                            currentFunction = funcInfo;
+                        }
+                    }
+                    
+                    DebugLogger::log("=== ENHANCED LUA ERROR REPORT ===");
+                    DebugLogger::log("Error Type: %s (code: %d)", errorTypeStr, resumeResult);
+                    DebugLogger::log("Error Message: %s", errorText.c_str());
+                    DebugLogger::log("Current Function: %s", currentFunction.c_str());
+                    DebugLogger::log("Stack Info: %s", fullStackDump.c_str());
+                    
+                    // Special analysis for "attempt to call a boolean value" error
+                    if (strstr(errorText.c_str(), "attempt to call a boolean value")) {
+                        DebugLogger::log("DIAGNOSIS: This error typically occurs when:");
+                        DebugLogger::log("1. A boolean value is being called as a function");
+                        DebugLogger::log("2. Wrong stack item is being resumed (boolean instead of thread)");
+                        DebugLogger::log("3. Function was overwritten with boolean value");
+                        DebugLogger::log("4. Module loading issue where function becomes boolean");
+                    }
+                    
+                    if (!stackFrames.empty()) DebugLogger::log("Stack Frames:\n%s", stackFrames.c_str());
+                    if (!threadAnalysis.empty()) DebugLogger::log("Thread Analysis:\n%s", threadAnalysis.c_str());
+                    if (!traceback.empty()) DebugLogger::log("Full Traceback: %s", traceback.c_str());
+                    
 #ifdef __WIIU__
-                    // Show error on screen and wait for B button
+                    // Log to simple debug file with enhanced information
+                    FILE* crashLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (crashLog) {
+                        fprintf(crashLog, "=== ENHANCED LUA CRASH REPORT ===\n");
+                        fprintf(crashLog, "Error Type: %s (code: %d)\n", errorTypeStr, resumeResult);
+                        fprintf(crashLog, "Error Message: %s\n", errorText.c_str());
+                        fprintf(crashLog, "Current Function: %s\n", currentFunction.c_str());
+                        fprintf(crashLog, "Stack Info: %s\n", fullStackDump.c_str());
+                        
+                        // Special diagnosis for boolean call error
+                        if (strstr(errorText.c_str(), "attempt to call a boolean value")) {
+                            fprintf(crashLog, "=== BOOLEAN CALL ERROR DIAGNOSIS ===\n");
+                            fprintf(crashLog, "This error occurs when:\n");
+                            fprintf(crashLog, "1. A boolean value is called as function: someBoolean()\n");
+                            fprintf(crashLog, "2. Wrong stack item resumed (boolean instead of thread)\n");
+                            fprintf(crashLog, "3. Function overwritten with boolean value\n");
+                            fprintf(crashLog, "4. Module loading issue (function -> boolean)\n");
+                            fprintf(crashLog, "5. Incorrect stack manipulation in C code\n");
+                            fprintf(crashLog, "=== END DIAGNOSIS ===\n");
+                        }
+                        
+                        // Log detailed stack contents
+                        fprintf(crashLog, "=== STACK CONTENTS ===\n");
+                        for (int i = 1; i <= stackTop; i++) {
+                            int type = lua_type(L, i);
+                            const char* typeName = lua_typename(L, type);
+                            fprintf(crashLog, "Stack[%d]: %s", i, typeName);
+                            
+                            if (type == LUA_TSTRING) {
+                                const char* str = lua_tostring(L, i);
+                                if (str) fprintf(crashLog, " = \"%s\"", str);
+                            } else if (type == LUA_TNUMBER) {
+                                double num = lua_tonumber(L, i);
+                                fprintf(crashLog, " = %g", num);
+                            } else if (type == LUA_TBOOLEAN) {
+                                int b = lua_toboolean(L, i);
+                                fprintf(crashLog, " = %s", b ? "true" : "false");
+                            }
+                            fprintf(crashLog, "\n");
+                        }
+                        
+                        // Log detailed stack frames
+                        if (!stackFrames.empty()) {
+                            fprintf(crashLog, "=== STACK FRAMES ===\n");
+                            fprintf(crashLog, "%s", stackFrames.c_str());
+                        }
+                        
+                        // Log thread analysis
+                        if (!threadAnalysis.empty()) {
+                            fprintf(crashLog, "=== THREAD ANALYSIS ===\n");
+                            fprintf(crashLog, "%s", threadAnalysis.c_str());
+                        }
+                        
+                        if (!traceback.empty()) {
+                            fprintf(crashLog, "=== FULL TRACEBACK ===\n");
+                            fprintf(crashLog, "%s\n", traceback.c_str());
+                        }
+                        
+                        // Additional debug information
+                        fprintf(crashLog, "=== ENVIRONMENT INFO ===\n");
+                        fprintf(crashLog, "Lua Version: %s\n", LUA_VERSION);
+                        fprintf(crashLog, "Lua Stack Top: %d items\n", stackTop);
+                        fprintf(crashLog, "Memory Usage: %d KB\n", lua_gc(L, LUA_GCCOUNT, 0));
+                        
+                        fprintf(crashLog, "=== END ENHANCED CRASH REPORT ===\n\n");
+                        fflush(crashLog);
+                        fclose(crashLog);
+                    }
+                    
+                    // Show enhanced crash screen and wait for B button
                     bool waiting = true;
                     VPADStatus vpad;
                     KPADStatus kpad;
-                    std::string tb1, tb2;
+                    
+                    // Parse traceback into multiple lines for display
+                    std::string tb1, tb2, tb3;
                     if (!traceback.empty()) {
-                        size_t nl = traceback.find('\n');
-                        tb1 = traceback.substr(0, nl);
-                        tb2 = (nl != std::string::npos) ? traceback.substr(nl+1, traceback.find('\n', nl+1)-nl-1) : "";
+                        std::vector<std::string> lines;
+                        size_t start = 0;
+                        size_t pos = 0;
+                        while ((pos = traceback.find('\n', start)) != std::string::npos) {
+                            std::string line = traceback.substr(start, pos - start);
+                            if (!line.empty() && line != "\t") {
+                                lines.push_back(line);
+                            }
+                            start = pos + 1;
+                        }
+                        if (start < traceback.length()) {
+                            std::string line = traceback.substr(start);
+                            if (!line.empty() && line != "\t") {
+                                lines.push_back(line);
+                            }
+                        }
+                        
+                        if (lines.size() > 0) tb1 = lines[0];
+                        if (lines.size() > 1) tb2 = lines[1];
+                        if (lines.size() > 2) tb3 = lines[2];
                     }
+                    
                     while (waiting) {
-                        drawCrashScreen(errorText.c_str(), tb1.c_str(), tb2.c_str());
+                        drawCrashScreen(errorText.c_str(), errorTypeStr, currentFunction.c_str(), 
+                                      tb1.c_str(), tb2.c_str(), tb3.c_str());
                         VPADRead(VPAD_CHAN_0, &vpad, 1, NULL);
                         KPADRead(WPAD_CHAN_0, &kpad, 1);
                         if ((vpad.hold & VPAD_BUTTON_B) || (kpad.hold & WPAD_BUTTON_B)) {
@@ -435,9 +881,24 @@ namespace love
 #endif
                 }
                 
-                DebugLogger::log("mainLoop() error handling complete, calling SYSLaunchMenu()");
-                SYSLaunchMenu();
-                s_Shutdown = true;
+                // IMPORTANT: Instead of immediately exiting, let the Lua error handler take over
+                // The error is still on the Lua stack and will be handled by love.errhand
+                DebugLogger::log("mainLoop() error detected - letting Lua error handler take over instead of exiting");
+                DebugLogger::log("Lua error result: %d", resumeResult);
+                DebugLogger::log("Current Lua stack size: %d", lua_gettop(L));
+                
+                // Check if we're now in error handler mode
+                if (lua_gettop(L) > 0) {
+                    DebugLogger::log("Error handler should be running, stack has items");
+                    if (lua_isstring(L, -1)) {
+                        const char* errorOnStack = lua_tostring(L, -1);
+                        DebugLogger::log("Error message on stack: %.100s", errorOnStack ? errorOnStack : "NULL");
+                    }
+                }
+                
+                // Don't call SYSLaunchMenu() or set s_Shutdown here - let love.errhand handle it
+                // SYSLaunchMenu();
+                // s_Shutdown = true;
             }
         }
 

@@ -1,6 +1,7 @@
 #include "driver/display/GX2.hpp"
 
 #include "modules/graphics/Texture.hpp"
+#include "driver/display/utility.hpp"
 
 #include <gx2/state.h>
 #include <gx2/utils.h>
@@ -105,10 +106,20 @@ namespace love
     void Texture::unloadVolatile()
     {
         if (this->texture != nullptr)
+        {
+            if (this->texture->surface.image)
+                free(this->texture->surface.image);
             delete this->texture;
+            this->texture = nullptr;
+        }
 
         if (this->target != nullptr)
+        {
+            if (this->target->surface.image)
+                free(this->target->surface.image);
             delete this->target;
+            this->target = nullptr;
+        }
 
         this->setGraphicsMemorySize(0);
     }
@@ -156,6 +167,43 @@ namespace love
 
         if (this->isRenderTarget())
         {
+            // Create GX2ColorBuffer for render target
+            this->target = new GX2ColorBuffer();
+            
+            if (!this->target)
+                throw love::Exception("Failed to create GX2ColorBuffer for render target.");
+                
+            std::memset(this->target, 0, sizeof(GX2ColorBuffer));
+            
+            this->target->surface.use    = GX2_SURFACE_USE_TEXTURE_COLOR_BUFFER_TV;
+            this->target->surface.dim    = GX2_SURFACE_DIM_TEXTURE_2D;
+            this->target->surface.aa     = GX2_AA_MODE1X;
+            this->target->surface.width  = this->pixelWidth;
+            this->target->surface.height = this->pixelHeight;
+            
+            this->target->surface.depth     = 1;
+            this->target->surface.mipLevels = 1;
+            
+            // Convert pixel format to GX2 format
+            GX2SurfaceFormat gpuFormat;
+            if (!GX2::getConstant(this->format, gpuFormat))
+                throw love::Exception("Invalid pixel format {:s} for render target.", love::getConstant(this->format));
+                
+            this->target->surface.format   = gpuFormat;
+            this->target->surface.tileMode = GX2_TILE_MODE_DEFAULT;
+            this->target->viewNumSlices    = 1;
+            
+            GX2CalcSurfaceSizeAndAlignment(&this->target->surface);
+            GX2InitColorBufferRegs(this->target);
+            
+            // Allocate memory for the render target
+            this->target->surface.image = memalign(this->target->surface.alignment, this->target->surface.imageSize);
+            
+            if (!this->target->surface.image)
+                throw love::Exception("Failed to allocate render target memory.");
+                
+            std::memset(this->target->surface.image, 0, this->target->surface.imageSize);
+            GX2Invalidate(GX2_INVALIDATE_MODE_CPU_TEXTURE, this->target->surface.image, this->target->surface.imageSize);
         }
         else if (!hasData)
         {

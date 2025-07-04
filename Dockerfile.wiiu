@@ -43,6 +43,14 @@ RUN if [ -f /project/platform/cafe/bootSound.wav ]; then \
     java -jar /opt/wav2btsnd/wav2btsnd.jar /project/platform/cafe/bootSound.wav /project/platform/cafe/bootSound.btsnd; \
     else echo "No bootSound.wav found, skipping btsnd conversion."; fi
 
+# Create game.zip before build (needed for fusing with executable)
+RUN echo "=== Creating game.zip from game folder ===" && \
+    mkdir -p /project/build && \
+    cd /project/game && \
+    zip -r /project/build/game.love . && \
+    echo "=== game.love created successfully ===" && \
+    ls -la /project/build/game.love
+
 # Build
 RUN mkdir -p build && cd build && \
     ls -lh /project/platform/cafe/ && \
@@ -54,14 +62,24 @@ RUN mkdir -p build && cd build && \
     echo "=== Make build completed ===" && \
     echo "=== BUILD OUTPUT DEBUG ===" && \
     ls -la && \
+    echo "=== FUSING GAME DATA INTO WUHB ===" && \
+    if [ -f lovepotion.wuhb ] && [ -f /project/build/game.love ]; then \
+        cat lovepotion.wuhb /project/build/game.love > balatro.wuhb && \
+        echo "=== GAME FUSED SUCCESSFULLY ===" && \
+        ls -la balatro.wuhb; \
+    else \
+        echo "=== FUSING FAILED - Missing files ==="; \
+        echo "lovepotion.wuhb exists: $(test -f lovepotion.wuhb && echo yes || echo no)"; \
+        echo "game.love exists: $(test -f /project/build/game.love && echo yes || echo no)"; \
+    fi && \
     echo "=== FIND ALL RPX/WUHB/ELF FILES IN PROJECT ===" && \
-    find /project -name "*.rpx" -o -name "*.wuhb" -o -name "*.elf" | head -20 && \
+    find /project -name "*.rpx" -o -name "*.wuhb" -o | head -20 && \
     echo "=== FIND ALL EXECUTABLE FILES ===" && \
     find /project -name "*lovepotion*" -type f | head -20 && \
     echo "=== COPYING FILES ===" && \
     mkdir -p /output && \
-    find /project -name "*.rpx" -exec cp -v {} /output/ \; && \
-    find /project -name "*.wuhb" -exec cp -v {} /output/ \; && \
+    find /project -name "balatro.wuhb" -exec cp -v {} /output/ \; && \
+    cp -v balatro.wuhb /output/ 2>/dev/null || echo "balatro.wuhb not found" && \
     find /project -name "*lovepotion*" -type f -executable -exec cp -v {} /output/ \; 2>/dev/null || true && \
     echo "=== FINAL OUTPUT DIRECTORY ===" && \
     ls -la /output/ && \

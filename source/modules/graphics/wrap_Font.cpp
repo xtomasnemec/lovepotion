@@ -274,14 +274,18 @@ namespace love
                 }
                 else
                 {
-                    coloredString.string = luaL_checkstring(L, -1);
+                    // Handle nil strings gracefully by using empty string
+                    const char* str = lua_tostring(L, -1);
+                    coloredString.string = str ? str : "";
                     strings.push_back(coloredString);
                 }
             }
         }
         else
         {
-            coloredString.string = luaL_checkstring(L, index);
+            // Handle nil strings gracefully by using empty string
+            const char* str = lua_tostring(L, index);
+            coloredString.string = str ? str : "";
             strings.push_back(coloredString);
         }
     }

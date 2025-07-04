@@ -2,11 +2,6 @@
 
 #include "modules/graphics/ShaderStage.hpp"
 
-#ifdef __WIIU__
-// Include ShaderCompiler for GLSL compilation support
-#include "../../../../../source/modules/graphics/opengl/ShaderCompiler.hpp"
-#endif
-
 #include <memory>
 
 namespace love
@@ -65,66 +60,25 @@ namespace love
 
         std::fclose(file);
 
-        // Check if this is a GLSL text file
-        bool isGLSL = false;
-        std::string fileExt = this->filepath.substr(this->filepath.find_last_of(".") + 1);
-        if (fileExt == "glsl" || fileExt == "vert" || fileExt == "frag")
+        if (this->getStageType() == SHADERSTAGE_VERTEX)
         {
-            isGLSL = true;
+            this->vertex = WHBGfxLoadGFDVertexShader(0, this->code.data());
+
+            if (!this->vertex)
+            {
+                this->warnings.append("Failed to load Vertex Shader.");
+                return false;
+            }
         }
 
-        if (isGLSL)
+        if (this->getStageType() == SHADERSTAGE_PIXEL)
         {
-            // Handle GLSL source file
-            std::string sourceCode(reinterpret_cast<char*>(this->code.data()), size);
-            
-#ifdef __WIIU__
-            if (this->getStageType() == SHADERSTAGE_VERTEX)
-            {
-                this->vertex = ShaderCompiler::compileAndCacheVertexShader(sourceCode);
-                if (!this->vertex)
-                {
-                    this->warnings.append("Failed to compile GLSL Vertex Shader.");
-                    return false;
-                }
-            }
-            else if (this->getStageType() == SHADERSTAGE_PIXEL)
-            {
-                this->pixel = ShaderCompiler::compileAndCachePixelShader(sourceCode);
-                if (!this->pixel)
-                {
-                    this->warnings.append("Failed to compile GLSL Fragment Shader.");
-                    return false;
-                }
-            }
-#else
-            this->warnings.append("GLSL compilation not supported on this platform.");
-            return false;
-#endif
-        }
-        else
-        {
-            // Handle binary GFD file (original behavior)
-            if (this->getStageType() == SHADERSTAGE_VERTEX)
-            {
-                this->vertex = WHBGfxLoadGFDVertexShader(0, this->code.data());
+            this->pixel = WHBGfxLoadGFDPixelShader(0, this->code.data());
 
-                if (!this->vertex)
-                {
-                    this->warnings.append("Failed to load Vertex Shader.");
-                    return false;
-                }
-            }
-
-            if (this->getStageType() == SHADERSTAGE_PIXEL)
+            if (!this->pixel)
             {
-                this->pixel = WHBGfxLoadGFDPixelShader(0, this->code.data());
-
-                if (!this->pixel)
-                {
-                    this->warnings.append("Failed to load Pixel Shader.");
-                    return false;
-                }
+                this->warnings.append("Failed to load Pixel Shader.");
+                return false;
             }
         }
 

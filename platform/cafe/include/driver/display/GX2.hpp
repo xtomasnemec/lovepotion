@@ -52,6 +52,8 @@ namespace love
 
         void present();
 
+        void showFallbackDiagnosticScreen();
+
         void setBlendState(const BlendState& state);
 
         void setViewport(const Rect& viewport);
@@ -189,6 +191,9 @@ namespace love
         Uniform* uniform;
 
         bool inForeground;
+
+        // Endless loop detection
+        int consecutivePresentCalls;
 
         void* commandBuffer;
         GX2ContextState* state;

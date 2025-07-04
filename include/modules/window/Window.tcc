@@ -253,6 +253,11 @@ namespace love
       protected:
         bool createWindowAndContext(int x, int y, int width, int height, uint32_t flags)
         {
+            // Set window dimensions for Wii U
+            this->windowWidth = width;
+            this->windowHeight = height;
+            this->pixelWidth = width;
+            this->pixelHeight = height;
             this->open = true;
             return true;
         }

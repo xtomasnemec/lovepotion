@@ -40,12 +40,21 @@ int Wrap_JoystickModule::getJoystickCount(lua_State* L)
     return 1;
 }
 
+int Wrap_JoystickModule::loadGamepadMappings(lua_State* L)
+{
+    // Stub implementation for Wii U - gamepad mappings are built-in
+    // The filename parameter is ignored since Wii U doesn't need external mappings
+    lua_pushinteger(L, 0); // Return 0 mappings loaded (success but no external mappings needed)
+    return 1;
+}
+
 // clang-format off
 static constexpr luaL_Reg functions[] =
 {
-    { "getJoysticks",     Wrap_JoystickModule::getJoysticks     },
-    { "getIndex",         Wrap_JoystickModule::getIndex         },
-    { "getJoystickCount", Wrap_JoystickModule::getJoystickCount }
+    { "getJoysticks",           Wrap_JoystickModule::getJoysticks           },
+    { "getIndex",               Wrap_JoystickModule::getIndex               },
+    { "getJoystickCount",       Wrap_JoystickModule::getJoystickCount       },
+    { "loadGamepadMappings",    Wrap_JoystickModule::loadGamepadMappings    }
 };
 
 static constexpr lua_CFunction types[] =
