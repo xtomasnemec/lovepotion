@@ -4,20 +4,11 @@ FROM devkitpro/devkitppc:latest
 # Build type argument (Debug or Release)
 ARG BUILD_TYPE=Debug
 
-# Install dos2unix using apt-get (not dkp-pacman)
-RUN apt-get update && apt-get install -y dos2unix
-
-# Install build tools and git for wav2btsnd
-RUN apt-get update && apt-get install -y git build-essential
-
-# Install OpenJDK for wav2btsnd.jar
-RUN apt-get update && apt-get install -y openjdk-11-jre-headless
-
-# Download wav2btsnd.jar
-RUN mkdir -p /opt/wav2btsnd && \
-    wget -O /opt/wav2btsnd/wav2btsnd.jar https://bitbucket.org/timogus/wav2btsnd/raw/master/wav2btsnd.jar
-
-RUN dkp-pacman -S --needed --noconfirm \
+#install dependencies
+RUN echo "=== Installing dependencies ===" && \
+ apt-get update && apt-get upgrade -y && \
+ apt-get install -y git build-essential python3 python3-pip cmake git dos2unix wget python3-setuptools python3-mako bison flex meson && \
+ dkp-pacman -S --needed --noconfirm \
     wut-tools \
     wut \
     ppc-zlib \
@@ -29,6 +20,29 @@ RUN dkp-pacman -S --needed --noconfirm \
     ppc-libvorbisidec \
     ppc-bzip2
 
+#BOOTSOUND NOT WORKING
+
+# Install OpenJDK for wav2btsnd.jar
+#RUN apt-get update && apt-get install -y openjdk-11-jre-headless
+
+# Download wav2btsnd.jar
+#RUN mkdir -p /opt/wav2btsnd && \
+ #   wget -O /opt/wav2btsnd/wav2btsnd.jar https://bitbucket.org/timogus/wav2btsnd/raw/master/wav2btsnd.jar
+# Convert bootSound.wav to bootSound.btsnd if present
+#RUN if [ -f /project/platform/cafe/bootSound.wav ]; then \
+ #   echo "=== Converting bootSound.wav to bootSound.btsnd using wav2btsnd.jar ===" && \
+  #  java -jar /opt/wav2btsnd/wav2btsnd.jar /project/platform/cafe/bootSound.wav /project/platform/cafe/bootSound.btsnd; \
+   # else echo "No bootSound.wav found, skipping btsnd conversion."; fi
+
+# Download precompiled CafeGLSL
+RUN echo "=== Downloading CafeGLSL ===" && \
+    mkdir -p /opt/CafeGLSL && \
+    cd /opt/CafeGLSL && \
+    wget -O glslcompiler.rpl https://github.com/Exzap/CafeGLSL/releases/download/v0.2.0/glslcompiler.rpl && \
+    wget -O CafeGLSLCompiler.h https://raw.githubusercontent.com/Exzap/CafeGLSL/main/cafecompiler/CafeGLSLCompiler.h && \
+    echo "=== CafeGLSL download completed ===" && \
+    ls -la
+
 WORKDIR /project
 
 # Copy project
@@ -36,12 +50,6 @@ COPY . .
 
 # Convert line endings and skip luasocket patches (luasocket is disabled for Wii U)
 RUN find /project -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs dos2unix || true
-
-# Convert bootSound.wav to bootSound.btsnd if present
-RUN if [ -f /project/platform/cafe/bootSound.wav ]; then \
-    echo "=== Converting bootSound.wav to bootSound.btsnd using wav2btsnd.jar ===" && \
-    java -jar /opt/wav2btsnd/wav2btsnd.jar /project/platform/cafe/bootSound.wav /project/platform/cafe/bootSound.btsnd; \
-    else echo "No bootSound.wav found, skipping btsnd conversion."; fi
 
 # Create game.zip before build (needed for fusing with executable)
 RUN echo "=== Creating game.zip from game folder ===" && \
@@ -55,7 +63,14 @@ RUN echo "=== Creating game.zip from game folder ===" && \
 RUN mkdir -p build && cd build && \
     ls -lh /project/platform/cafe/ && \
     echo "=== Starting CMake configuration ===" && \
-    cmake .. -DNINTENDO_WIIU=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/WiiU.cmake && \
+    echo "=== Copying CafeGLSL library ===" && \
+    mkdir -p /project/platform/cafe/content && \
+    mkdir -p /project/include/common && \
+    cp /opt/CafeGLSL/*.rpl /project/platform/cafe/content/ 2>/dev/null || echo "No CafeGLSL .rpl files found" && \
+    cp /opt/CafeGLSL/CafeGLSLCompiler.h /project/include/common/ 2>/dev/null || echo "No CafeGLSL header found" && \
+    ls -la /project/platform/cafe/ && \
+    ls -la /project/platform/cafe/content/ 2>/dev/null || echo "Content directory not found" && \
+    cmake .. -DNINTENDO_WIIU=ON -DUSE_CAFEGLSL=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/WiiU.cmake && \
     echo "=== CMake configuration completed ===" && \
     echo "=== Starting make build ===" && \
     make -j$(nproc) || (echo "=== Make failed, showing build directory contents ===" && ls -la && exit 1) && \
@@ -73,18 +88,27 @@ RUN mkdir -p build && cd build && \
         echo "game.love exists: $(test -f /project/build/game.love && echo yes || echo no)"; \
     fi && \
     echo "=== FIND ALL RPX/WUHB/ELF FILES IN PROJECT ===" && \
-    find /project -name "*.rpx" -o -name "*.wuhb" -o | head -20 && \
+    find /project -name "*.rpx" -o -name "*.wuhb" -o -name "*.elf" | head -20 && \
     echo "=== FIND ALL EXECUTABLE FILES ===" && \
     find /project -name "*lovepotion*" -type f | head -20 && \
-    echo "=== COPYING FILES ===" && \
+    echo "=== COPYING FILES TO OUTPUT ===" && \
     mkdir -p /output && \
-    find /project -name "balatro.wuhb" -exec cp -v {} /output/ \; && \
-    cp -v balatro.wuhb /output/ 2>/dev/null || echo "balatro.wuhb not found" && \
-    find /project -name "*lovepotion*" -type f -executable -exec cp -v {} /output/ \; 2>/dev/null || true && \
-    echo "=== FINAL OUTPUT DIRECTORY ===" && \
-    ls -la /output/ && \
-    echo "=== FINAL BUILD DIRECTORY ===" && \
-    ls -la /project/build/
+    echo "Current working directory: $(pwd)" && \
+    echo "Files in current directory:" && \
+    ls -la && \
+    if [ -f balatro.wuhb ]; then \
+        echo "Found balatro.wuhb, copying to /output/" && \
+        cp -v balatro.wuhb /output/; \
+    else \
+        echo "balatro.wuhb not found in build directory"; \
+    fi && \
+    echo "=== COPYING ALL BUILD ARTIFACTS ===" && \
+    cp -v lovepotion.elf /output/ 2>/dev/null || echo "lovepotion.elf not found" && \
+    cp -v lovepotion.rpx /output/ 2>/dev/null || echo "lovepotion.rpx not found" && \
+    cp -v lovepotion.wuhb /output/ 2>/dev/null || echo "lovepotion.wuhb not found" && \
+    cp -v game.love /output/ 2>/dev/null || echo "game.love not found" && \
+    echo "=== OUTPUT DIRECTORY CONTENTS ===" && \
+    ls -la /output/
 
 # Export output directory
 VOLUME ["/output"]

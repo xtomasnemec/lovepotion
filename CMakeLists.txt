@@ -29,6 +29,26 @@ set(APP_AUTHOR "xtomasnemec")
 
 file(COPY libraries/luasocket DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+# CafeGLSL - Wii U shader compiler support
+option(USE_CAFEGLSL "Enable CafeGLSL shader compilation support" ON)
+if(USE_CAFEGLSL)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_CAFEGLSL=1)
+    target_sources(${PROJECT_NAME} PRIVATE source/common/CafeGLSL.cpp)
+    message(STATUS "CafeGLSL shader support: ENABLED")
+else()
+    message(STATUS "CafeGLSL shader support: DISABLED")
+endif()
+
+# PPC Debugger - Advanced PowerPC debugging support
+option(USE_PPC_DEBUGGER "Enable advanced PPC debugging" OFF)
+if(USE_PPC_DEBUGGER)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_PPC_DEBUGGER=1)
+    target_sources(${PROJECT_NAME} PRIVATE source/common/PPCDebugger.cpp)
+    message(STATUS "PPC Debugger support: ENABLED")
+else()
+    message(STATUS "PPC Debugger support: DISABLED")
+endif()
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(APP_TITLE "Balatro U Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE __DEBUG__=1)

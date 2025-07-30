@@ -7,6 +7,9 @@
 #ifdef __WIIU__
 #include "DebugLogger.hpp"
 #include "driver/EventQueue.hpp"
+#ifdef USE_PPC_DEBUGGER
+#include "common/PPCDebugger.hpp"
+#endif
 #include <cstdio>
 #include <ctime>
 #endif
@@ -482,6 +485,13 @@ int main(int argc, char** argv)
 #ifdef __WIIU__
     // Initialize simple logging first
     initSimpleLog();
+
+#ifdef USE_PPC_DEBUGGER
+    // Initialize PPC debugger IMMEDIATELY for maximum coverage
+    love::PPCDebugger::Initialize();
+    love::PPCDebugger::DebugPoint("MAIN_START", "Application entry point reached");
+    love::PPCDebugger::StartPerformanceTimer("main_execution");
+#endif
     simpleLog("=== MAIN() STARTED ===");
     
     // Initialize DebugLogger too
@@ -496,7 +506,11 @@ int main(int argc, char** argv)
         sprintf(buffer, "argv[%d] = %s", i, argv[i] ? argv[i] : "(null)");
         simpleLog(buffer);
     }
-    
+
+#ifdef USE_PPC_DEBUGGER    
+    love::PPCDebugger::LogMemoryDump(0x10000000, 512, "MAIN_INIT_MEMORY");
+    love::PPCDebugger::DebugPoint("PREINIT_START", "About to call preInit()");
+#endif
     simpleLog("About to call preInit()");
     
     // Also use DebugLogger
@@ -516,15 +530,27 @@ int main(int argc, char** argv)
 #ifdef __WIIU__
             simpleLog("ERROR: preInit() failed!");
             love::DebugLogger::log("ERROR: preInit() failed with code %d", preInitResult);
+#ifdef USE_PPC_DEBUGGER
+            love::PPCDebugger::CriticalError("preInit() failed", true);
+#endif
 #endif
             love::onExit();
             return 0;
         }
+#ifdef __WIIU__
+#ifdef USE_PPC_DEBUGGER
+        love::PPCDebugger::DebugPoint("PREINIT_SUCCESS", "preInit() completed successfully");
+#endif
+        simpleLog("preInit() completed successfully");
+#endif
     }
     catch (const love::Exception& e)
     {
 #ifdef __WIIU__
         love::DebugLogger::log("LOVE Exception in preInit(): %s", e.what());
+#ifdef USE_PPC_DEBUGGER
+        love::PPCDebugger::CriticalError("LOVE Exception in preInit()", true);
+#endif
 #endif
         love::onExit();
         return 1;

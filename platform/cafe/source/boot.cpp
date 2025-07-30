@@ -28,12 +28,13 @@
 namespace love
 {
     // clang-format off
-    static constexpr std::array<const Service, 5> services =
+    // CEMU COMPATIBILITY: Reduced services for better compatibility
+    static constexpr std::array<const Service, 2> services =
     {{
         { "procUI", BIND(ProcUIInit, OSSavesDone_ReadyToRelease), &ProcUIShutdown },
-        { "vpad",   BIND(VPADInit),                               &VPADShutdown   },
-        { "kpad",   BIND(KPADInit),                               &KPADShutdown   },
-        { "ac",     BIND(ACInitialize),                           &ACFinalize     },
+        // { "vpad",   BIND(VPADInit),                               &VPADShutdown   }, // CEMU: VPADInit causes problems
+        // { "kpad",   BIND(KPADInit),                               &KPADShutdown   }, // CEMU: Disable for testing
+        // { "ac",     BIND(ACInitialize),                           &ACFinalize     }, // CEMU: Network may cause hang
         { "fs",     BIND(FSInit),                                 &FSShutdown     }
         // { "bsp",    BIND(bspInitializeShimInterface),             []() { }        }
     }};
@@ -74,34 +75,83 @@ namespace love
     {
         // Initialize debug logger (safe to call multiple times)
         DebugLogger::init();
-        DebugLogger::log("preInit() called");
+        DebugLogger::log("=== PREINIT STARTED ===");
+        DebugLogger::log("preInit() called - beginning service initialization");
 
         /* we aren't running Aroma */
         // if (getApplicationPath().empty())
         //     return -1;
 
         // Initialize services first without loading screen
+        DebugLogger::log("About to initialize %zu services", services.size());
+        
         int serviceCount = 0;
         for (const auto& service : services)
         {
-            DebugLogger::log("Initializing service: %s", service.name);
+            DebugLogger::log("=== SERVICE INIT: %s ===", service.name);
+            DebugLogger::log("About to initialize service: %s", service.name);
             
-            if (!service.init().success())
+#ifdef __WIIU__
+            // Also log to simple file for Cemu debugging
+            FILE* serviceLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (serviceLog) {
+                fprintf(serviceLog, "=== INITIALIZING SERVICE: %s ===\n", service.name);
+                fflush(serviceLog);
+                fclose(serviceLog);
+            }
+#endif
+            
+            auto result = service.init();
+            if (!result.success())
             {
-                DebugLogger::log("Failed to initialize service: %s", service.name);
+                DebugLogger::log("FAILED to initialize service: %s", service.name);
+#ifdef __WIIU__
+                FILE* serviceErrorLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (serviceErrorLog) {
+                    fprintf(serviceErrorLog, "FAILED TO INITIALIZE SERVICE: %s\n", service.name);
+                    fflush(serviceErrorLog);
+                    fclose(serviceErrorLog);
+                }
+#endif
                 return -1;
             }
-            DebugLogger::log("Service %s initialized successfully", service.name);
+            DebugLogger::log("SUCCESS: Service %s initialized successfully", service.name);
+            serviceCount++;
+            
+#ifdef __WIIU__
+            FILE* serviceOkLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (serviceOkLog) {
+                fprintf(serviceOkLog, "SUCCESS: Service %s initialized (%d/%zu)\n", service.name, serviceCount, services.size());
+                fflush(serviceOkLog);
+                fclose(serviceOkLog);
+            }
+#endif
         }
 
-        WPADEnableWiiRemote(true);
-        WPADEnableURCC(true);
-        DebugLogger::log("WPAD initialized");
+        DebugLogger::log("All %d services initialized successfully", serviceCount);
 
+        // CEMU COMPATIBILITY: These functions cause problems in Cemu emulator
+        // Commenting them out for better compatibility
+        DebugLogger::log("Skipping WPAD functions for Cemu compatibility");
+        // WPADEnableWiiRemote(true);
+        // WPADEnableURCC(true);
+        DebugLogger::log("WPAD functions skipped for Cemu compatibility");
+
+        DebugLogger::log("About to set main core ID");
         Console::setMainCoreId(OSGetCoreId());
         DebugLogger::log("Main core ID set to: %u", OSGetCoreId());
 
-        DebugLogger::log("preInit() completed successfully");
+        DebugLogger::log("=== PREINIT COMPLETED SUCCESSFULLY ===");
+        
+#ifdef __WIIU__
+        FILE* completedLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (completedLog) {
+            fprintf(completedLog, "=== PREINIT COMPLETED SUCCESSFULLY ===\n");
+            fflush(completedLog);
+            fclose(completedLog);
+        }
+#endif
+        
         return 0;
     }
 
@@ -755,6 +805,33 @@ namespace love
                     DebugLogger::log("Current Function: %s", currentFunction.c_str());
                     DebugLogger::log("Stack Info: %s", fullStackDump.c_str());
                     
+                    // ENHANCED: Write to console (stderr) and stdout for maximum visibility
+                    fprintf(stderr, "\n=== LUA ERROR DETECTED ===\n");
+                    fprintf(stderr, "Error Type: %s (code: %d)\n", errorTypeStr, resumeResult);
+                    fprintf(stderr, "Error Message: %s\n", errorText.c_str());
+                    fprintf(stderr, "Current Function: %s\n", currentFunction.c_str());
+                    fprintf(stderr, "Stack Info: %s\n", fullStackDump.c_str());
+                    fflush(stderr);
+                    
+                    // Print to stdout as well for console visibility
+                    printf("\n=== LUA ERROR DETECTED ===\n");
+                    printf("Error Type: %s (code: %d)\n", errorTypeStr, resumeResult);
+                    printf("Error Message: %s\n", errorText.c_str());
+                    printf("Current Function: %s\n", currentFunction.c_str());
+                    printf("Stack Info: %s\n", fullStackDump.c_str());
+                    fflush(stdout);
+                    
+                    // Also write to a simple text file for easy reading
+                    FILE* errorFile = fopen("lua_error.txt", "w");
+                    if (errorFile) {
+                        fprintf(errorFile, "=== LUA ERROR REPORT ===\n");
+                        fprintf(errorFile, "Error Type: %s (code: %d)\n", errorTypeStr, resumeResult);
+                        fprintf(errorFile, "Error Message: %s\n", errorText.c_str());
+                        fprintf(errorFile, "Current Function: %s\n", currentFunction.c_str());
+                        fprintf(errorFile, "Stack Info: %s\n", fullStackDump.c_str());
+                        fclose(errorFile);
+                    }
+                    
                     // Special analysis for "attempt to call a boolean value" error
                     if (strstr(errorText.c_str(), "attempt to call a boolean value")) {
                         DebugLogger::log("DIAGNOSIS: This error typically occurs when:");
@@ -762,11 +839,39 @@ namespace love
                         DebugLogger::log("2. Wrong stack item is being resumed (boolean instead of thread)");
                         DebugLogger::log("3. Function was overwritten with boolean value");
                         DebugLogger::log("4. Module loading issue where function becomes boolean");
+                        
+                        printf("DIAGNOSIS: This error typically occurs when:\n");
+                        printf("1. A boolean value is being called as a function\n");
+                        printf("2. Wrong stack item is being resumed (boolean instead of thread)\n");
+                        printf("3. Function was overwritten with boolean value\n");
+                        printf("4. Module loading issue where function becomes boolean\n");
                     }
                     
-                    if (!stackFrames.empty()) DebugLogger::log("Stack Frames:\n%s", stackFrames.c_str());
-                    if (!threadAnalysis.empty()) DebugLogger::log("Thread Analysis:\n%s", threadAnalysis.c_str());
-                    if (!traceback.empty()) DebugLogger::log("Full Traceback: %s", traceback.c_str());
+                    // Special analysis for "attempt to index field" error
+                    if (strstr(errorText.c_str(), "attempt to index field")) {
+                        DebugLogger::log("DIAGNOSIS: This error typically occurs when:");
+                        DebugLogger::log("1. Trying to access a field on a nil value");
+                        DebugLogger::log("2. Missing table or object initialization");
+                        DebugLogger::log("3. Shader or resource not loaded properly");
+                        
+                        printf("DIAGNOSIS: This error typically occurs when:\n");
+                        printf("1. Trying to access a field on a nil value\n");
+                        printf("2. Missing table or object initialization\n");
+                        printf("3. Shader or resource not loaded properly\n");
+                    }
+                    
+                    if (!stackFrames.empty()) {
+                        DebugLogger::log("Stack Frames:\n%s", stackFrames.c_str());
+                        printf("Stack Frames:\n%s\n", stackFrames.c_str());
+                    }
+                    if (!threadAnalysis.empty()) {
+                        DebugLogger::log("Thread Analysis:\n%s", threadAnalysis.c_str());
+                        printf("Thread Analysis:\n%s\n", threadAnalysis.c_str());
+                    }
+                    if (!traceback.empty()) {
+                        DebugLogger::log("Full Traceback: %s", traceback.c_str());
+                        printf("Full Traceback: %s\n", traceback.c_str());
+                    }
                     
 #ifdef __WIIU__
                     // Log to simple debug file with enhanced information
@@ -881,24 +986,18 @@ namespace love
 #endif
                 }
                 
-                // IMPORTANT: Instead of immediately exiting, let the Lua error handler take over
-                // The error is still on the Lua stack and will be handled by love.errhand
-                DebugLogger::log("mainLoop() error detected - letting Lua error handler take over instead of exiting");
+                // IMPORTANT: After a Lua error, let the error handler take complete control
+                // Set shutdown flag to stop the C++ main loop from interfering
+                DebugLogger::log("Lua error detected - stopping C++ main loop to let love.errhand take over");
                 DebugLogger::log("Lua error result: %d", resumeResult);
                 DebugLogger::log("Current Lua stack size: %d", lua_gettop(L));
                 
-                // Check if we're now in error handler mode
-                if (lua_gettop(L) > 0) {
-                    DebugLogger::log("Error handler should be running, stack has items");
-                    if (lua_isstring(L, -1)) {
-                        const char* errorOnStack = lua_tostring(L, -1);
-                        DebugLogger::log("Error message on stack: %.100s", errorOnStack ? errorOnStack : "NULL");
-                    }
-                }
+                // The error handler (love.errhand) will now handle the error display and user interaction
+                // We need to stop the C++ main loop to prevent interference with error handler rendering
+                s_Shutdown = true;
                 
-                // Don't call SYSLaunchMenu() or set s_Shutdown here - let love.errhand handle it
-                // SYSLaunchMenu();
-                // s_Shutdown = true;
+                // Log the transition
+                DebugLogger::log("C++ main loop stopped - love.errhand should now have control");
             }
         }
 

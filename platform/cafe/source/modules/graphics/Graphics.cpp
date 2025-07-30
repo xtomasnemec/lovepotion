@@ -8,10 +8,22 @@
 #include "modules/graphics/Texture.hpp"
 #include "modules/graphics/freetype/Font.hpp"
 
+#ifdef USE_CAFEGLSL
+#include "common/CafeGLSL.hpp"
+#endif
+
+#ifdef USE_PPC_DEBUGGER
+#include "common/PPCDebugger.hpp"
+#endif
+
 #include <gx2/draw.h>
 #include <gx2/event.h>
 #include <gx2/state.h>
 #include <gx2r/draw.h>
+
+#ifdef __WIIU__
+#include "WiiUGraphicsOptimizer.hpp"
+#endif
 
 namespace love
 {
@@ -24,11 +36,57 @@ namespace love
             fflush(logFile);
             fclose(logFile);
         }
+
+#ifdef USE_PPC_DEBUGGER
+        // Initialize PPC debugger first for maximum debugging coverage
+        PPCDebugger::Initialize();
+        PPCDebugger::DebugPoint("GRAPHICS_CONSTRUCTOR_START", "Graphics module initialization beginning");
+        PPCDebugger::StartPerformanceTimer("graphics_init");
+        PPCDebugger::LogMemoryDump(0x10000000, 256, "GRAPHICS_INIT_MEMORY_STATE");
+#endif
+#endif
+
+#ifdef USE_CAFEGLSL
+        // Initialize CafeGLSL shader compiler for enhanced rendering
+#ifdef USE_PPC_DEBUGGER
+        PPCDebugger::DebugPoint("CAFEGLSL_INIT_START", "Attempting CafeGLSL initialization");
+#endif
+        if (CafeGLSLCompiler::Initialize())
+        {
+#ifdef __WIIU__
+            FILE* cafeLogFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (cafeLogFile) {
+                fprintf(cafeLogFile, "CafeGLSL: Shader compiler initialized successfully\n");
+                fflush(cafeLogFile);
+                fclose(cafeLogFile);
+            }
+#ifdef USE_PPC_DEBUGGER
+            PPCDebugger::DebugPoint("CAFEGLSL_INIT_SUCCESS", "CafeGLSL loaded successfully");
+#endif
+#endif
+        }
+        else
+        {
+#ifdef __WIIU__
+            FILE* cafeLogFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (cafeLogFile) {
+                fprintf(cafeLogFile, "CafeGLSL: Warning - Shader compiler not available, using fallback rendering\n");
+                fflush(cafeLogFile);
+                fclose(cafeLogFile);
+            }
+#ifdef USE_PPC_DEBUGGER
+            PPCDebugger::CriticalError("CafeGLSL failed to initialize - this may cause rendering issues", true);
+#endif
+#endif
+        }
 #endif
         
         auto* window = Module::getInstance<Window>(M_WINDOW);
 
 #ifdef __WIIU__
+#ifdef USE_PPC_DEBUGGER
+        PPCDebugger::DebugPoint("WINDOW_INSTANCE_GET", "Retrieved window instance");
+#endif
         FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
         if (logFile2) {
             fprintf(logFile2, "Graphics: got window instance %p\n", (void*)window);
@@ -40,6 +98,9 @@ namespace love
         if (window != nullptr)
         {
 #ifdef __WIIU__
+#ifdef USE_PPC_DEBUGGER
+            PPCDebugger::DebugPoint("WINDOW_SET_GRAPHICS", "Setting graphics on window");
+#endif
             FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
             if (logFile3) {
                 fprintf(logFile3, "Graphics: setting graphics on window\n");
@@ -52,6 +113,9 @@ namespace love
             if (window->isOpen())
             {
 #ifdef __WIIU__
+#ifdef USE_PPC_DEBUGGER
+                PPCDebugger::DebugPoint("WINDOW_IS_OPEN", "Window is open, proceeding with initialization");
+#endif
                 FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
                 if (logFile4) {
                     fprintf(logFile4, "Graphics: window is open, setting window parameters\n");
@@ -85,7 +149,20 @@ namespace love
     }
 
     Graphics::~Graphics()
-    {}
+    {
+#ifdef USE_CAFEGLSL
+        // Cleanup CafeGLSL shader compiler
+        CafeGLSLCompiler::Shutdown();
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "CafeGLSL: Shader compiler shutdown completed\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+#endif
+    }
 
     void Graphics::initCapabilities()
     {
@@ -180,8 +257,16 @@ namespace love
             }
         }
 
-        if (color.hasValue || stencil.hasValue || depth.hasValue)
+        if (color.hasValue || stencil.hasValue || depth.hasValue) {
+#ifdef __WIIU__
+            // Only flush if we're not in emergency mode and have drawn enough to matter
+            if (!WiiUGraphicsOptimizer::isInEmergencyMode()) {
+                this->flushBatchedDraws();
+            }
+#else
             this->flushBatchedDraws();
+#endif
+        }
 
         if (color.hasValue)
         {
@@ -268,6 +353,26 @@ namespace love
 
         // CRITICAL: Flush all batched draws before presenting the frame
         this->flushBatchedDraws();
+
+#ifdef USE_CAFEGLSL
+        // Enhanced rendering path with CafeGLSL shaders
+        if (CafeGLSLCompiler::IsAvailable())
+        {
+#ifdef __WIIU__
+            static int cafeGLSLFrameCount = 0;
+            cafeGLSLFrameCount++;
+            if (cafeGLSLFrameCount <= 5 || cafeGLSLFrameCount % 120 == 0) {
+                FILE* cafeLogFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (cafeLogFile) {
+                    fprintf(cafeLogFile, "present() using CafeGLSL enhanced rendering (frame %d)\n", cafeGLSLFrameCount);
+                    fflush(cafeLogFile);
+                    fclose(cafeLogFile);
+                }
+            }
+#endif
+            // TODO: Add enhanced UI shader rendering here
+        }
+#endif
 
 #ifdef __WIIU__
         static int presentFlushCount = 0;
@@ -661,7 +766,21 @@ namespace love
 
     void Graphics::draw(const DrawIndexedCommand& command)
     {
+#ifdef __WIIU__
+        // Skip excessive draw calls to prevent performance issues
+        if (WiiUGraphicsOptimizer::shouldSkipDrawCall()) {
+            return;
+        }
+        
+        // Only call prepareDraw if really needed
+        static int frameNumber = 0;
+        if (!WiiUGraphicsOptimizer::shouldSkipPrepareDraw(frameNumber)) {
+            gx2.prepareDraw(this);
+        }
+#else
         gx2.prepareDraw(this);
+#endif
+        
         gx2.bindTextureToUnit(command.texture, 0);
         // gx2.setCullMode(command.cullMode);
 
@@ -678,7 +797,20 @@ namespace love
 
     void Graphics::draw(const DrawCommand& command)
     {
+#ifdef __WIIU__
+        // Skip excessive draw calls to prevent performance issues
+        if (WiiUGraphicsOptimizer::shouldSkipDrawCall()) {
+            return;
+        }
+        
+        // Only call prepareDraw if really needed
+        static int frameNumber = 0;
+        if (!WiiUGraphicsOptimizer::shouldSkipPrepareDraw(frameNumber)) {
+            gx2.prepareDraw(this);
+        }
+#else
         gx2.prepareDraw(this);
+#endif
 
         const auto mode        = GX2::getPrimitiveType(command.primitiveType);
         const auto vertexCount = command.vertexCount;

@@ -26,6 +26,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 source/boot.cpp
 source/debug_log.cpp
 source/DebugLogger.cpp
+source/cemu_compat.cpp
 source/common/screen.cpp
 source/driver/audio/AudioBuffer.cpp
 source/driver/audio/DigitalSound.cpp
@@ -48,4 +49,5 @@ source/modules/system/System.cpp
 source/modules/timer/Timer.cpp
 source/modules/video/Video.cpp
 source/modules/window/Window.cpp
+source/WiiUGraphicsOptimizer.cpp
 )

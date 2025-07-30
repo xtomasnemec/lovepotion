@@ -510,7 +510,10 @@ return function()
 	while func do
 		if setModalDrawFunc and love.event and func ~= prevFunc then
 			prevFunc = func
-			love.event._setDefaultModalDrawCallback(func)
+			-- Check if _setDefaultModalDrawCallback exists before calling it
+			if love.event._setDefaultModalDrawCallback then
+				love.event._setDefaultModalDrawCallback(func)
+			end
 		end
 		local _, retval, restartvalue = xpcall(func, deferErrhand)
 		if retval then return retval, restartvalue end

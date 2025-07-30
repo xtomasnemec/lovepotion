@@ -8,7 +8,9 @@ namespace love
     System::System() : SystemBase()
     {
         this->mcpHandle = MCP_Open();
-        this->ucHandle  = UCOpen();
+        // CEMU COMPATIBILITY: UCOpen causes problems in Cemu
+        // this->ucHandle  = UCOpen();
+        this->ucHandle = 0; // Set to 0 for Cemu compatibility
 
         nn::act::Initialize();
 

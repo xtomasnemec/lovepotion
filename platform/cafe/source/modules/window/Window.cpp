@@ -117,14 +117,17 @@ namespace love
 
     void Window::setDisplaySleepEnabled(bool enable)
     {
-        enable ? IMEnableDim() : IMDisableDim();
+        // CEMU COMPATIBILITY: IMDisableDim causes problems in Cemu
+        // enable ? IMEnableDim() : IMDisableDim();
+        // Function disabled for Cemu compatibility
     }
 
     bool Window::isDisplaySleepEnabled() const
     {
-        uint32_t enabled;
-        IMIsDimEnabled(&enabled);
-
-        return enabled;
+        // CEMU COMPATIBILITY: IMIsDimEnabled might cause problems in Cemu
+        // uint32_t enabled;
+        // IMIsDimEnabled(&enabled);
+        // return enabled;
+        return false; // Return false for Cemu compatibility
     }
 } // namespace love

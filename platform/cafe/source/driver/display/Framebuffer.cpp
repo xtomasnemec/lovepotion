@@ -91,7 +91,9 @@ namespace love
 
         if (info.id == GX2_SCAN_TARGET_TV)
         {
-            GX2SetTVEnable(true);
+            // CEMU COMPATIBILITY: GX2SetTVEnable causes problems in Cemu
+            // GX2SetTVEnable(true);
+            
             GX2TVRenderMode mode = GX2_TV_RENDER_MODE_WIDE_480P;
 
             if (info.height == 720)
@@ -100,12 +102,17 @@ namespace love
                 mode = GX2_TV_RENDER_MODE_WIDE_1080P;
 
             GX2CalcTVSize(mode, FORMAT, BUFFER_MODE, &this->scanBufferSize, &unknown);
-            GX2SetTVScale(info.width, info.height);
+            
+            // CEMU COMPATIBILITY: GX2SetTVScale may cause problems in Cemu
+            // GX2SetTVScale(info.width, info.height);
+            
             this->renderMode = mode;
         }
         else
         {
-            GX2SetDRCEnable(true);
+            // CEMU COMPATIBILITY: GX2SetDRCEnable causes problems in Cemu
+            // GX2SetDRCEnable(true);
+            
             GX2DrcRenderMode mode = GX2_DRC_RENDER_MODE_SINGLE;
 
             GX2CalcDRCSize(mode, FORMAT, BUFFER_MODE, &this->scanBufferSize, &unknown);

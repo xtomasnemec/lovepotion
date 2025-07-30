@@ -5,6 +5,10 @@
 #include "modules/graphics/Shader.hpp"
 #include "modules/keyboard/Keyboard.hpp"
 
+#ifdef __WIIU__
+#include "WiiUGraphicsOptimizer.hpp"
+#endif
+
 #include <gx2/clear.h>
 #include <gx2/context.h>
 #include <gx2/display.h>
@@ -213,6 +217,13 @@ namespace love
                 fflush(logFile2);
                 fclose(logFile2);
             }
+            // Reset consecutive present calls counter at start of new frame
+            this->consecutivePresentCalls = 0;
+            
+            // Reset draw call optimization counters for new frame
+            #ifdef __WIIU__
+            WiiUGraphicsOptimizer::startFrame();
+            #endif
 #endif
             this->inFrame = true;
         }
@@ -428,23 +439,24 @@ namespace love
             fclose(logFile);
         }
         
+        // DISABLED: Fallback detection to prevent black screen
         // If we've had too many consecutive present calls without a reset, trigger fallback
-        if (this->consecutivePresentCalls > 30 && !fallbackTriggered) {
-            fallbackTriggered = true;
-            
-            FILE* fallbackLog = fopen("fs:/vol/external01/simple_debug.log", "a");
-            if (fallbackLog) {
-                fprintf(fallbackLog, "=== ENDLESS LOOP DETECTED: TRIGGERING FALLBACK DIAGNOSTIC SCREEN ===\n");
-                fprintf(fallbackLog, "Consecutive present calls: %d\n", this->consecutivePresentCalls);
-                fprintf(fallbackLog, "This indicates lua_resume() is hanging in an endless loop\n");
-                fflush(fallbackLog);
-                fclose(fallbackLog);
-            }
-            
-            // Force entry into diagnostic fallback mode
-            this->showFallbackDiagnosticScreen();
-            return; // Skip normal present logic
-        }
+        // if (this->consecutivePresentCalls > 30 && !fallbackTriggered) {
+        //     fallbackTriggered = true;
+        //     
+        //     FILE* fallbackLog = fopen("fs:/vol/external01/simple_debug.log", "a");
+        //     if (fallbackLog) {
+        //         fprintf(fallbackLog, "=== ENDLESS LOOP DETECTED: TRIGGERING FALLBACK DIAGNOSTIC SCREEN ===\n");
+        //         fprintf(fallbackLog, "Consecutive present calls: %d\n", this->consecutivePresentCalls);
+        //         fprintf(fallbackLog, "This indicates lua_resume() is hanging in an endless loop\n");
+        //         fflush(fallbackLog);
+        //         fclose(fallbackLog);
+        //     }
+        //     
+        //     // Force entry into diagnostic fallback mode
+        //     this->showFallbackDiagnosticScreen();
+        //     return; // Skip normal present logic
+        // }
 #endif
         
         if (!this->inFrame)
