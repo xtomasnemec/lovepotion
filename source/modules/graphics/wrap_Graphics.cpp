@@ -2288,6 +2288,10 @@ static constexpr luaL_Reg functions[] =
     { "setDefaultFilter",       Wrap_Graphics::setDefaultFilter      },
     { "getDefaultFilter",       Wrap_Graphics::getDefaultFilter      },
 
+    { "setShader",              Wrap_Graphics::setShader             },
+    { "getShader",              Wrap_Graphics::getShader             },
+    { "newShader",              Wrap_Graphics::newShader             },
+
     { "draw",                   Wrap_Graphics::draw                  },
 
     { "polygon",                Wrap_Graphics::polygon               },
@@ -2532,5 +2536,90 @@ int Wrap_Graphics::getTextureTypes(lua_State* L)
 {
     // Stub implementation - return empty table for now
     lua_newtable(L);
+    return 1;
+}
+
+int Wrap_Graphics::setShader(lua_State* L)
+{
+    auto* graphics = instance();
+    luax_checkgraphicscreated(L);
+
+    if (lua_gettop(L) == 0 || lua_isnil(L, 1))
+    {
+        // love.graphics.setShader() or love.graphics.setShader(nil) - reset to default
+        graphics->setShader();
+    }
+    else
+    {
+        // love.graphics.setShader(shader)
+        ShaderBase* shader = luax_checktype<ShaderBase>(L, 1);
+        graphics->setShader(shader);
+    }
+
+    return 0;
+}
+
+int Wrap_Graphics::getShader(lua_State* L)
+{
+    auto* graphics = instance();
+    luax_checkgraphicscreated(L);
+    
+    ShaderBase* shader = graphics->getShader();
+    
+    if (shader == nullptr)
+    {
+        lua_pushnil(L);
+    }
+    else
+    {
+        luax_pushtype(L, shader);
+    }
+    
+    return 1;
+}
+
+int Wrap_Graphics::newShader(lua_State* L)
+{
+    auto* graphics = instance();
+    luax_checkgraphicscreated(L);
+    
+    std::vector<std::string> filepaths;
+    ShaderBase::CompileOptions options;
+    
+    // Handle different argument patterns:
+    // newShader(vertexCode, fragmentCode) - string codes
+    // newShader(vertexFile, fragmentFile) - file paths
+    // newShader(shaderCode) - single code for both vertex and fragment
+    
+    if (lua_type(L, 1) == LUA_TSTRING)
+    {
+        const char* code1 = luaL_checkstring(L, 1);
+        
+        if (lua_gettop(L) >= 2 && lua_type(L, 2) == LUA_TSTRING)
+        {
+            // Two strings: vertex and fragment code/files
+            const char* code2 = luaL_checkstring(L, 2);
+            filepaths.push_back(std::string(code1));
+            filepaths.push_back(std::string(code2));
+        }
+        else
+        {
+            // Single string: combined shader code/file
+            filepaths.push_back(std::string(code1));
+        }
+    }
+    else
+    {
+        return luaL_error(L, "newShader expects string arguments");
+    }
+    
+    ShaderBase* shader = nullptr;
+    luax_catchexcept(L, [&]() {
+        shader = graphics->newShader(filepaths, options);
+    });
+    
+    luax_pushtype(L, shader);
+    shader->release();
+    
     return 1;
 }

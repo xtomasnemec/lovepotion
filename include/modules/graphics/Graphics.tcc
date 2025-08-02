@@ -505,8 +505,6 @@ namespace love
 
         virtual FontBase* newDefaultFont(int size, const Rasterizer::Settings& settings) = 0;
 
-        // Mesh* newMesh(int vertexCount, PrimitiveType mode);
-
         TextBatch* newTextBatch(FontBase* font, const std::vector<ColoredString>& text = {});
 
         void checkSetDefaultFont();

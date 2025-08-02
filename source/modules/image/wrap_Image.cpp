@@ -135,12 +135,45 @@ int Wrap_Image::isCompressed(lua_State* L)
     return 1;
 }
 
+int Wrap_Image::getFormat(lua_State* L)
+{
+    if (luax_istype(L, 1, ImageData::type))
+    {
+        ImageData* imageData = luax_checkimagedata(L, 1);
+        PixelFormat format = imageData->getFormat();
+        
+        const char* formatName = love::getConstant(format);
+        if (!formatName)
+            return luaL_error(L, "Unknown pixel format");
+        
+        lua_pushstring(L, formatName);
+        return 1;
+    }
+    else if (luax_istype(L, 1, CompressedImageData::type))
+    {
+        CompressedImageData* compressedData = luax_checkcompressedimagedata(L, 1);
+        PixelFormat format = compressedData->getFormat();
+        
+        const char* formatName = love::getConstant(format);
+        if (!formatName)
+            return luaL_error(L, "Unknown pixel format");
+        
+        lua_pushstring(L, formatName);
+        return 1;
+    }
+    else
+    {
+        return luaL_error(L, "Expected ImageData or CompressedImageData");
+    }
+}
+
 // clang-format off
 static constexpr luaL_Reg functions[] =
 {
     { "newImageData",      Wrap_Image::newImageData      },
     { "newCompressedData", Wrap_Image::newCompressedData },
-    { "isCompressed",      Wrap_Image::isCompressed      }
+    { "isCompressed",      Wrap_Image::isCompressed      },
+    { "getFormat",         Wrap_Image::getFormat         }
 };
 
 static constexpr lua_CFunction types[] =

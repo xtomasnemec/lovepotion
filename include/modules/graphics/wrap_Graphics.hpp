@@ -171,6 +171,12 @@ namespace Wrap_Graphics
 
     int setDefaultFilter(lua_State* L);
 
+    int setShader(lua_State* L);
+    
+    int getShader(lua_State* L);
+
+    int newShader(lua_State* L);
+
     int getScreens(lua_State* L);
 
     int getActiveScreen(lua_State* L);

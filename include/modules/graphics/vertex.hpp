@@ -89,6 +89,16 @@ namespace love
         BUFFERDATAUSAGE_MAX_ENUM
     };
 
+    // The draw mode for mesh rendering.
+    enum MeshDrawMode
+    {
+        MESHDRAWMODE_FAN,
+        MESHDRAWMODE_STRIP,
+        MESHDRAWMODE_TRIANGLES,
+        MESHDRAWMODE_POINTS,
+        MESHDRAWMODE_MAX_ENUM
+    };
+
     // Value types used when interfacing with the GPU (vertex and shader data).
     // The order of this enum affects the dataFormatInfo array.
     enum DataFormat

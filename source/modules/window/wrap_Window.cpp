@@ -497,6 +497,68 @@ int Wrap_Window::setIcon(lua_State*)
     return 0;
 }
 
+int Wrap_Window::getTitle(lua_State* L)
+{
+    // Return default title - stub implementation
+    lua_pushstring(L, "LovePotion Game");
+    return 1;
+}
+
+int Wrap_Window::getIcon(lua_State* L)
+{
+    // Return nil for icon - stub implementation
+    lua_pushnil(L);
+    return 1;
+}
+
+int Wrap_Window::getSafeArea(lua_State* L)
+{
+    // Return full screen as safe area - stub implementation
+    auto* window = instance();
+    if (window)
+    {
+        int width, height;
+        window->getDesktopDimensions(0, width, height);
+        lua_pushinteger(L, 0);  // x
+        lua_pushinteger(L, 0);  // y
+        lua_pushinteger(L, width);   // width
+        lua_pushinteger(L, height);  // height
+        return 4;
+    }
+    
+    lua_pushinteger(L, 0);
+    lua_pushinteger(L, 0);
+    lua_pushinteger(L, 800);
+    lua_pushinteger(L, 600);
+    return 4;
+}
+
+int Wrap_Window::getVideoModes(lua_State* L)
+{
+    // Return basic video modes - stub implementation
+    lua_newtable(L);
+    
+    // Add a few common video modes
+    int modes[][2] = {
+        {800, 600},
+        {1024, 768}, 
+        {1280, 720},
+        {1920, 1080}
+    };
+    
+    for (int i = 0; i < 4; i++)
+    {
+        lua_newtable(L);
+        lua_pushinteger(L, modes[i][0]);
+        lua_setfield(L, -2, "width");
+        lua_pushinteger(L, modes[i][1]);
+        lua_setfield(L, -2, "height");
+        lua_rawseti(L, -2, i + 1);
+    }
+    
+    return 1;
+}
+
 // clang-format off
 static constexpr luaL_Reg functions[] =
 {
@@ -526,7 +588,11 @@ static constexpr luaL_Reg functions[] =
     { "isMinimized",             Wrap_Window::isMinimized            },
     { "showMessageBox",          Wrap_Window::showMessageBox         },
     { "setTitle",                Wrap_Window::setTitle               },
-    { "setIcon",                 Wrap_Window::setIcon                }
+    { "setIcon",                 Wrap_Window::setIcon                },
+    { "getTitle",                Wrap_Window::getTitle               },
+    { "getIcon",                 Wrap_Window::getIcon                },
+    { "getSafeArea",             Wrap_Window::getSafeArea            },
+    { "getVideoModes",           Wrap_Window::getVideoModes          }
 };
 // clang-format on
 

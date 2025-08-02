@@ -176,6 +176,36 @@ namespace love
     {
         if (current != this)
         {
+#ifdef __WIIU__
+            static int attachCount = 0;
+            attachCount++;
+            
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "Shader::attach() #%d: Switching to shader %p (was %p)\n", 
+                        attachCount, this, current);
+                        
+                // Log which standard shader this is
+                const char* shaderTypeName = "unknown";
+                for (int i = 0; i < STANDARD_MAX_ENUM; i++) {
+                    if (this == standardShaders[i]) {
+                        switch(i) {
+                            case STANDARD_DEFAULT: shaderTypeName = "STANDARD_DEFAULT"; break;
+                            case STANDARD_TEXTURE: shaderTypeName = "STANDARD_TEXTURE"; break;
+                            case STANDARD_VIDEO: shaderTypeName = "STANDARD_VIDEO"; break;
+                        }
+                        break;
+                    }
+                }
+                fprintf(logFile, "  Shader type: %s\n", shaderTypeName);
+                fprintf(logFile, "  Vertex shader: %p, Pixel shader: %p\n", 
+                        this->program.vertexShader, this->program.pixelShader);
+                
+                fflush(logFile);
+                fclose(logFile);
+            }
+#endif
+
             Graphics::flushBatchedDrawsGlobal();
 
             GX2SetShaderMode(GX2_SHADER_MODE_UNIFORM_BLOCK);
@@ -187,5 +217,19 @@ namespace love
             current = this;
             shaderSwitches++;
         }
+#ifdef __WIIU__
+        else {
+            static int skipCount = 0;
+            skipCount++;
+            if (skipCount <= 5 || skipCount % 100 == 0) {
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    fprintf(logFile, "Shader::attach() skipped: already current (skip #%d)\n", skipCount);
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+            }
+        }
+#endif
     }
 } // namespace love

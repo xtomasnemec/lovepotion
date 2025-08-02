@@ -31,8 +31,8 @@ if not exist "build" mkdir build
 
 REM Run container and copy files
 echo Extracting built files...
-echo Running: docker run --rm -v "%CD%\build:/host/build" lovepotion-wiiu sh -c 
-docker run --rm -v "%CD%\build:/host/build" lovepotion-wiiu sh -c 
+echo Running: docker run --rm -v "%CD%\build:/host/build" lovepotion-wiiu sh -c "cp -r /output/* /host/build/ 2>/dev/null || echo 'No output files to copy'"
+docker run --rm -v "%CD%\build:/host/build" lovepotion-wiiu sh -c "cp -r /output/* /host/build/ 2>/dev/null || echo 'No output files to copy'"
 
 echo Checking build directory...
 dir /b build

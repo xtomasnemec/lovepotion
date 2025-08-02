@@ -1,5 +1,6 @@
 #pragma once
 
+#include "modules/graphics/Mesh.hpp"
 #include "modules/graphics/Graphics.tcc"
 
 #include <gx2/display.h>

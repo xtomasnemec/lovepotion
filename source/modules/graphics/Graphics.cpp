@@ -385,7 +385,27 @@ namespace love
         if (state.lastVertexCount == 0)
         {
             if (ShaderBase::isDefaultActive())
+            {
+#ifdef __WIIU__
+                static int shaderSwitchCount = 0;
+                shaderSwitchCount++;
+                
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    const char* typeName = "unknown";
+                    switch(state.shaderType) {
+                        case ShaderBase::STANDARD_DEFAULT: typeName = "STANDARD_DEFAULT"; break;
+                        case ShaderBase::STANDARD_TEXTURE: typeName = "STANDARD_TEXTURE"; break;
+                        case ShaderBase::STANDARD_VIDEO: typeName = "STANDARD_VIDEO"; break;
+                    }
+                    fprintf(logFile, "requestBatchedDraw() #%d: switching to shader type %s for %s\n", 
+                            shaderSwitchCount, typeName, command.isFont ? "FONT" : "GRAPHICS");
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+#endif
                 ShaderBase::attachDefault(state.shaderType);
+            }
         }
 
         if (shouldResize)

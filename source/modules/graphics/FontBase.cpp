@@ -117,11 +117,38 @@ namespace love
 
     const FontBase::Glyph& FontBase::addGlyph(TextShaper::GlyphIndex glyphIndex)
     {
+#ifdef __WIIU__
+        static int addGlyphCount = 0;
+        addGlyphCount++;
+        
+        if (addGlyphCount <= 20 || addGlyphCount % 100 == 0) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "FontBase::addGlyph() called (#%d)\n", addGlyphCount);
+                fprintf(logFile, "  glyphIndex: rast=%d, idx=%d\n", glyphIndex.rasterizerIndex, glyphIndex.index);
+                fprintf(logFile, "  font=%p, textures.size()=%zu\n", this, textures.size());
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
+
         float dpiScale = this->getDPIScale();
         StrongRef<GlyphData> gd(this->getRasterizerGlyphData(glyphIndex, dpiScale), Acquire::NO_RETAIN);
 
         int width  = gd->getWidth();
         int height = gd->getHeight();
+
+#ifdef __WIIU__
+        if (addGlyphCount <= 20) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "  glyph size: %dx%d\n", width, height);
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
 
         if (width + TEXTURE_PADDING * 2 < textureWidth && height + TEXTURE_PADDING * 2 < textureHeight)
         {
@@ -147,6 +174,20 @@ namespace love
         {
             TextureBase* texture = this->textures.back();
             glyph.texture        = texture;
+
+#ifdef __WIIU__
+            if (addGlyphCount <= 20) {
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    fprintf(logFile, "  setting glyph.texture=%p from textures.back()\n", texture);
+                    if (texture) {
+                        fprintf(logFile, "  texture info: %dx%d\n", texture->getWidth(), texture->getHeight());
+                    }
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+            }
+#endif
 
             Rect rect = { this->textureX, this->textureY, gd->getWidth(), gd->getHeight() };
 
@@ -228,11 +269,65 @@ namespace love
     void FontBase::print(GraphicsBase* graphics, const std::vector<ColoredString>& text,
                          const Matrix4& matrix, const Color& constantcolor)
     {
+#ifdef __WIIU__
+        static int fontPrintCount = 0;
+        fontPrintCount++;
+        
+        if (fontPrintCount <= 15 || fontPrintCount % 30 == 0) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "FontBase::print() called (#%d)\n", fontPrintCount);
+                fprintf(logFile, "  graphics=%p, font=%p\n", graphics, this);
+                fprintf(logFile, "  text.size()=%zu\n", text.size());
+                
+                if (!text.empty()) {
+                    fprintf(logFile, "  first_text='%.100s'\n", text[0].string.c_str());
+                }
+                
+                fprintf(logFile, "  color: R=%.2f G=%.2f B=%.2f A=%.2f\n", 
+                       constantcolor.r, constantcolor.g, constantcolor.b, constantcolor.a);
+                       
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
+
         ColoredCodepoints codepoints;
         getCodepointsFromString(text, codepoints);
 
+#ifdef __WIIU__
+        if (fontPrintCount <= 15) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "  after getCodepointsFromString: codepoints.size()=%zu\n", codepoints.codepoints.size());
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
+
         std::vector<GlyphVertex> vertices {};
         auto drawcommands = this->generateVertices(codepoints, Range(), constantcolor, vertices);
+
+#ifdef __WIIU__
+        if (fontPrintCount <= 15) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "  after generateVertices: vertices.size()=%zu, drawcommands.size()=%zu\n", 
+                       vertices.size(), drawcommands.size());
+                       
+                if (!drawcommands.empty()) {
+                    const auto& cmd = drawcommands[0];
+                    fprintf(logFile, "  first_drawcmd: texture=%p, startVertex=%d, vertexCount=%d\n",
+                           cmd.texture, cmd.startVertex, cmd.vertexCount);
+                }
+                
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
 
         this->printv(graphics, matrix, drawcommands, vertices);
     }
@@ -266,10 +361,37 @@ namespace love
                                                                   float extra_spacing, Vector2 offset,
                                                                   TextShaper::TextInfo* info)
     {
+#ifdef __WIIU__
+        static int generateCount = 0;
+        generateCount++;
+        
+        if (generateCount <= 10 || generateCount % 60 == 0) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "FontBase::generateVertices() called (#%d)\n", generateCount);
+                fprintf(logFile, "  codepoints.size()=%zu\n", codepoints.codepoints.size());
+                fprintf(logFile, "  font=%p, textureCache=%u\n", this, textureCacheID);
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
+
         std::vector<TextShaper::GlyphPosition> glyphPositions {};
         std::vector<IndexedColor> colors;
         this->shaper->computeGlyphPositions(codepoints, range, offset, extra_spacing, &glyphPositions,
                                             &colors, info);
+
+#ifdef __WIIU__
+        if (generateCount <= 10) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "  after computeGlyphPositions: glyphPositions.size()=%zu\n", glyphPositions.size());
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
 
         size_t vertexStartSize = vertices.size();
         vertices.reserve(vertexStartSize + glyphPositions.size() * 4);
@@ -290,9 +412,31 @@ namespace love
             uint32_t cacheid   = textureCacheID;
             const Glyph& glyph = findGlyph(info.glyphIndex);
 
+#ifdef __WIIU__
+            if (generateCount <= 10 && i < 5) {
+                FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile) {
+                    fprintf(logFile, "    glyph[%d]: texture=%p, cache=%u->%u\n", 
+                           i, glyph.texture, cacheid, textureCacheID);
+                    fflush(logFile);
+                    fclose(logFile);
+                }
+            }
+#endif
+
             // If findGlyph invalidates the texture cache, restart the loop.
             if (cacheid != textureCacheID)
             {
+#ifdef __WIIU__
+                if (generateCount <= 10) {
+                    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile) {
+                        fprintf(logFile, "  texture cache invalidated, restarting loop\n");
+                        fflush(logFile);
+                        fclose(logFile);
+                    }
+                }
+#endif
                 i = -1; // The next iteration will increment this to 0.
                 commands.clear();
                 vertices.resize(vertexStartSize);
@@ -343,6 +487,24 @@ namespace love
                 commands.back().vertexCount += 4;
             }
         }
+
+#ifdef __WIIU__
+        if (generateCount <= 10) {
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "  generateVertices result: vertices.size()=%zu, commands.size()=%zu\n", 
+                       vertices.size(), commands.size());
+                       
+                if (!commands.empty()) {
+                    fprintf(logFile, "  first_command: texture=%p, vertexCount=%d\n",
+                           commands[0].texture, commands[0].vertexCount);
+                }
+                
+                fflush(logFile);
+                fclose(logFile);
+            }
+        }
+#endif
 
         std::sort(commands.begin(), commands.end(), sortGlyphs);
 
@@ -463,6 +625,46 @@ namespace love
                           const std::vector<DrawCommand>& drawcommands,
                           const std::vector<GlyphVertex>& vertices)
     {
+#ifdef __WIIU__
+        static int printvCount = 0;
+        printvCount++;
+        
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "FontBase::printv() called (#%d)\n", printvCount);
+            fprintf(logFile, "  vertices.size()=%zu, drawcommands.size()=%zu\n", vertices.size(), drawcommands.size());
+            
+            if (vertices.empty() || drawcommands.empty()) {
+                fprintf(logFile, "  EARLY_RETURN: vertices or drawcommands empty\n");
+                fflush(logFile);
+                fclose(logFile);
+                return;
+            }
+            
+            fprintf(logFile, "  graphics=%p, font=%p\n", graphics, this);
+            
+            // Log matrix details
+            const float* m_data = matrix.getElements();
+            fprintf(logFile, "  matrix=[%.2f,%.2f,%.2f,%.2f]\n", m_data[0], m_data[1], m_data[2], m_data[3]);
+            
+            // Log first few vertices
+            if (vertices.size() > 0) {
+                fprintf(logFile, "  first_vertex: x=%.2f y=%.2f s=%.2f t=%.2f\n", 
+                       vertices[0].x, vertices[0].y, vertices[0].s, vertices[0].t);
+            }
+            
+            // Log first draw command
+            if (drawcommands.size() > 0) {
+                const auto& cmd = drawcommands[0];
+                fprintf(logFile, "  first_cmd: texture=%p, startVertex=%d, vertexCount=%d\n",
+                       cmd.texture, cmd.startVertex, cmd.vertexCount);
+            }
+            
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+
         if (vertices.empty() || drawcommands.empty())
             return;
 
@@ -470,6 +672,29 @@ namespace love
 
         for (const DrawCommand& cmd : drawcommands)
         {
+#ifdef __WIIU__
+            static int cmdCount = 0;
+            cmdCount++;
+            
+            if (cmdCount <= 20 || cmdCount % 30 == 0) {
+                FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile2) {
+                    fprintf(logFile2, "  DrawCommand (#%d): texture=%p, startVertex=%d, vertexCount=%d\n",
+                           cmdCount, cmd.texture, cmd.startVertex, cmd.vertexCount);
+                    
+                    if (cmd.texture) {
+                        fprintf(logFile2, "    texture: width=%d, height=%d\n", 
+                               cmd.texture->getWidth(), cmd.texture->getHeight());
+                    } else {
+                        fprintf(logFile2, "    texture: NULL_TEXTURE!!!\n");
+                    }
+                    
+                    fflush(logFile2);
+                    fclose(logFile2);
+                }
+            }
+#endif
+
             BatchedDrawCommand command {};
             command.format      = CommonFormat::XYf_STf_RGBAf;
             command.indexMode   = TRIANGLEINDEX_QUADS;
@@ -480,6 +705,23 @@ namespace love
 
             auto data               = graphics->requestBatchedDraw(command);
             GlyphVertex* vertexdata = (GlyphVertex*)data.stream;
+
+#ifdef __WIIU__
+            if (cmdCount <= 20) {
+                FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile3) {
+                    fprintf(logFile3, "    requestBatchedDraw returned: stream=%p\n", data.stream);
+                    if (data.stream && cmd.vertexCount > 0) {
+                        // Log what we're about to copy
+                        const auto& srcVertex = vertices[cmd.startVertex];
+                        fprintf(logFile3, "    copying from vertex[%d]: x=%.2f y=%.2f s=%.2f t=%.2f\n",
+                               cmd.startVertex, srcVertex.x, srcVertex.y, srcVertex.s, srcVertex.t);
+                    }
+                    fflush(logFile3);
+                    fclose(logFile3);
+                }
+            }
+#endif
 
             std::copy_n(&vertices[cmd.startVertex], cmd.vertexCount, vertexdata);
             m.transformXY(vertexdata, &vertices[cmd.startVertex], cmd.vertexCount);

@@ -10,6 +10,8 @@ namespace Wrap_Image
     int newCompressedData(lua_State* L);
 
     int isCompressed(lua_State* L);
+    
+    int getFormat(lua_State* L);
 
     int open(lua_State* L);
 } // namespace Wrap_Image

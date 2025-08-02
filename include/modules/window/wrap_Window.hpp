@@ -59,5 +59,13 @@ namespace Wrap_Window
 
     int setTitle(lua_State* L);
 
+    int getTitle(lua_State* L);
+    
+    int getIcon(lua_State* L);
+    
+    int getSafeArea(lua_State* L);
+    
+    int getVideoModes(lua_State* L);
+
     int open(lua_State* L);
 } // namespace Wrap_Window

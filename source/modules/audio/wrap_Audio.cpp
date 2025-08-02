@@ -171,15 +171,118 @@ int Wrap_Audio::getVolume(lua_State* L)
     return 1;
 }
 
+int Wrap_Audio::setPosition(lua_State* L)
+{
+    float x = (float)luaL_checknumber(L, 1);
+    float y = (float)luaL_checknumber(L, 2);
+    float z = (float)luaL_optnumber(L, 3, 0.0);
+    
+    // Audio listener position - stub implementation
+    // Real implementation would set OpenAL listener position
+    return 0;
+}
+
+int Wrap_Audio::getPosition(lua_State* L)
+{
+    // Return default listener position
+    lua_pushnumber(L, 0.0);
+    lua_pushnumber(L, 0.0);
+    lua_pushnumber(L, 0.0);
+    return 3;
+}
+
+int Wrap_Audio::setOrientation(lua_State* L)
+{
+    float fx = (float)luaL_checknumber(L, 1);
+    float fy = (float)luaL_checknumber(L, 2);
+    float fz = (float)luaL_checknumber(L, 3);
+    float ux = (float)luaL_checknumber(L, 4);
+    float uy = (float)luaL_checknumber(L, 5);
+    float uz = (float)luaL_checknumber(L, 6);
+    
+    // Audio listener orientation - stub implementation
+    return 0;
+}
+
+int Wrap_Audio::getOrientation(lua_State* L)
+{
+    // Return default listener orientation (forward and up vectors)
+    lua_pushnumber(L, 0.0);  // fx
+    lua_pushnumber(L, 0.0);  // fy  
+    lua_pushnumber(L, -1.0); // fz
+    lua_pushnumber(L, 0.0);  // ux
+    lua_pushnumber(L, 1.0);  // uy
+    lua_pushnumber(L, 0.0);  // uz
+    return 6;
+}
+
+int Wrap_Audio::setVelocity(lua_State* L)
+{
+    float x = (float)luaL_checknumber(L, 1);
+    float y = (float)luaL_checknumber(L, 2);
+    float z = (float)luaL_optnumber(L, 3, 0.0);
+    
+    // Audio listener velocity - stub implementation
+    return 0;
+}
+
+int Wrap_Audio::getVelocity(lua_State* L)
+{
+    // Return default listener velocity
+    lua_pushnumber(L, 0.0);
+    lua_pushnumber(L, 0.0);
+    lua_pushnumber(L, 0.0);
+    return 3;
+}
+
+int Wrap_Audio::setDopplerScale(lua_State* L)
+{
+    float scale = (float)luaL_checknumber(L, 1);
+    // Set doppler scale - stub implementation
+    return 0;
+}
+
+int Wrap_Audio::getDopplerScale(lua_State* L)
+{
+    // Return default doppler scale
+    lua_pushnumber(L, 1.0);
+    return 1;
+}
+
+int Wrap_Audio::setDistanceModel(lua_State* L)
+{
+    const char* model = luaL_checkstring(L, 1);
+    // Set distance model - stub implementation
+    // Valid models: "none", "inverse", "inverseclamped", "linear", "linearclamped", "exponent", "exponentclamped"
+    return 0;
+}
+
+int Wrap_Audio::getDistanceModel(lua_State* L)
+{
+    // Return default distance model
+    lua_pushstring(L, "inverseclamped");
+    return 1;
+}
+
 // clang-format off
 static constexpr luaL_Reg functions[] =
 {
-    { "newSource", Wrap_Audio::newSource },
-    { "play",      Wrap_Audio::play      },
-    { "stop",      Wrap_Audio::stop      },
-    { "pause",     Wrap_Audio::pause     },
-    { "setVolume", Wrap_Audio::setVolume },
-    { "getVolume", Wrap_Audio::getVolume }
+    { "newSource",        Wrap_Audio::newSource        },
+    { "play",             Wrap_Audio::play             },
+    { "stop",             Wrap_Audio::stop             },
+    { "pause",            Wrap_Audio::pause            },
+    { "setVolume",        Wrap_Audio::setVolume        },
+    { "getVolume",        Wrap_Audio::getVolume        },
+    { "setPosition",      Wrap_Audio::setPosition      },
+    { "getPosition",      Wrap_Audio::getPosition      },
+    { "setOrientation",   Wrap_Audio::setOrientation   },
+    { "getOrientation",   Wrap_Audio::getOrientation   },
+    { "setVelocity",      Wrap_Audio::setVelocity      },
+    { "getVelocity",      Wrap_Audio::getVelocity      },
+    { "setDopplerScale",  Wrap_Audio::setDopplerScale  },
+    { "getDopplerScale",  Wrap_Audio::getDopplerScale  },
+    { "setDistanceModel", Wrap_Audio::setDistanceModel },
+    { "getDistanceModel", Wrap_Audio::getDistanceModel }
 };
 
 static constexpr lua_CFunction types[] =
