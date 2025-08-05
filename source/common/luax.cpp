@@ -1122,17 +1122,64 @@ namespace love
 
     int luax_convobj(lua_State* L, std::span<int> indices, const char* module, const char* function)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "luax_convobj() called with module=%s, function=%s, indices.size()=%zu\n", 
+                    module, function, indices.size());
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+
         luax_getfunction(L, module, function);
+
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "luax_convobj() - got function, about to push %zu values\n", indices.size());
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
 
         for (int index : indices)
             lua_pushvalue(L, index);
 
+#ifdef __WIIU__
+        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3) {
+            fprintf(logFile3, "luax_convobj() - about to call function with %d arguments\n", (int)indices.size());
+            fflush(logFile3);
+            fclose(logFile3);
+        }
+#endif
+
         lua_call(L, (int)indices.size(), 2);
+
+#ifdef __WIIU__
+        FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile4) {
+            fprintf(logFile4, "luax_convobj() - function call completed, checking for errors\n");
+            fflush(logFile4);
+            fclose(logFile4);
+        }
+#endif
+
         luax_assert_nilerror(L, -2);
         lua_pop(L, 1);
 
         if (indices.size() > 0)
             lua_replace(L, indices[0]);
+
+#ifdef __WIIU__
+        FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile5) {
+            fprintf(logFile5, "luax_convobj() - completed successfully\n");
+            fflush(logFile5);
+            fclose(logFile5);
+        }
+#endif
 
         return 0;
     }

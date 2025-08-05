@@ -541,13 +541,39 @@ namespace love
 
     ShaderStageBase* Graphics::newShaderStageInternal(ShaderStageType stage, const std::string& filepath)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "Graphics::newShaderStageInternal() called - stage: %d (%s), filepath: %s\n", 
+                    stage, (stage == 0 ? "VERTEX" : "PIXEL"), filepath.c_str());
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
         return new ShaderStage(stage, filepath);
     }
 
     ShaderBase* Graphics::newShaderInternal(StrongRef<ShaderStageBase> stages[SHADERSTAGE_MAX_ENUM],
                                             const ShaderBase::CompileOptions& options)
     {
-        return new Shader(stages, options);
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "Graphics::newShaderInternal() called - about to create new Shader\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        Shader* shader = new Shader(stages, options);
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "Graphics::newShaderInternal() - Shader created successfully: %p\n", shader);
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
+        return shader;
     }
 
     bool Graphics::setMode(int width, int height, int pixelWidth, int pixelHeight, bool backBufferStencil,
@@ -556,7 +582,9 @@ namespace love
 #ifdef __WIIU__
         FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
         if (logFile) {
-            fprintf(logFile, "Graphics::setMode() called with %dx%d\n", width, height);
+            fprintf(logFile, "Graphics::setMode() called with %dx%d (pixel: %dx%d)\n", 
+                    width, height, pixelWidth, pixelHeight);
+            fprintf(logFile, "Graphics::setMode() - current transform matrix dump:\n");
             fflush(logFile);
             fclose(logFile);
         }

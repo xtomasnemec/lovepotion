@@ -574,6 +574,15 @@ namespace love
 
     ShaderStageBase* GraphicsBase::newShaderStage(ShaderStageType stage, const std::string& filepath)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "GraphicsBase::newShaderStage() called - stage: %d (%s), filepath: %s\n", 
+                    stage, (stage == 0 ? "VERTEX" : "PIXEL"), filepath.c_str());
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
         return this->newShaderStageInternal(stage, filepath);
     }
 
@@ -587,6 +596,18 @@ namespace love
     {
         StrongRef<ShaderStageBase> stages[SHADERSTAGE_MAX_ENUM] {};
 
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "GraphicsBase::newShader() called with %zu filepaths\n", filepaths.size());
+            for (size_t i = 0; i < filepaths.size(); i++) {
+                fprintf(logFile, "  filepath[%zu] = %s\n", i, filepaths[i].c_str());
+            }
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+
         bool validStages[SHADERSTAGE_MAX_ENUM] {};
         validStages[SHADERSTAGE_VERTEX] = true;
         validStages[SHADERSTAGE_PIXEL]  = !Console::is(Console::CTR);
@@ -599,8 +620,58 @@ namespace love
             const auto type = ShaderStageType(index);
 
             if (validStages[index] && stages[index].get() == nullptr)
-                stages[index].set(this->newShaderStage(type, filepaths[index]), Acquire::NO_RETAIN);
+            {
+                // Use the appropriate file path:
+                // - If we have multiple files, use filepaths[index]
+                // - If we have only one file, use it for both vertex and pixel shaders
+                std::string filepath;
+                if (filepaths.size() > 1)
+                {
+                    // Multiple files: use specific file for each stage
+                    filepath = filepaths[index];
+                }
+                else if (filepaths.size() == 1)
+                {
+                    // Single file: use it for both stages
+                    filepath = filepaths[0];
+                }
+                else
+                {
+                    throw Exception("No shader files provided");
+                }
+
+#ifdef __WIIU__
+                FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile2) {
+                    fprintf(logFile2, "GraphicsBase::newShader() - creating stage %d (%s) with filepath: %s\n", 
+                            index, (index == 0 ? "VERTEX" : "PIXEL"), filepath.c_str());
+                    fflush(logFile2);
+                    fclose(logFile2);
+                }
+#endif
+                
+                stages[index].set(this->newShaderStage(type, filepath), Acquire::NO_RETAIN);
+
+#ifdef __WIIU__
+                FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile3) {
+                    fprintf(logFile3, "GraphicsBase::newShader() - stage %d (%s) created successfully\n", 
+                            index, (index == 0 ? "VERTEX" : "PIXEL"));
+                    fflush(logFile3);
+                    fclose(logFile3);
+                }
+#endif
+            }
         }
+
+#ifdef __WIIU__
+        FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile4) {
+            fprintf(logFile4, "GraphicsBase::newShader() - about to call newShaderInternal()\n");
+            fflush(logFile4);
+            fclose(logFile4);
+        }
+#endif
 
         return this->newShaderInternal(stages, options);
     }

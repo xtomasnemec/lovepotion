@@ -22,7 +22,23 @@ namespace love
     Shader::Shader(StrongRef<ShaderStageBase> _stages[SHADERSTAGE_MAX_ENUM], const CompileOptions& options) :
         ShaderBase(_stages, options)
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "Shader::Shader() constructor called\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
         this->loadVolatile();
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "Shader::Shader() loadVolatile() completed\n");
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
     }
 
     Shader::~Shader()
@@ -101,16 +117,83 @@ namespace love
 
     bool Shader::loadVolatile()
     {
+#ifdef __WIIU__
+        FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "Shader::loadVolatile() starting\n");
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
+        
         for (const auto& stage : this->stages)
         {
             if (stage.get() != nullptr)
-                ((ShaderStage*)stage.get())->loadVolatile();
+            {
+#ifdef __WIIU__
+                FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile2) {
+                    fprintf(logFile2, "Shader::loadVolatile() - loading stage %p\n", stage.get());
+                    fflush(logFile2);
+                    fclose(logFile2);
+                }
+#endif
+                bool stageLoadResult = ((ShaderStage*)stage.get())->loadVolatile();
+#ifdef __WIIU__
+                FILE* logFile2b = fopen("fs:/vol/external01/simple_debug.log", "a");
+                if (logFile2b) {
+                    fprintf(logFile2b, "Shader::loadVolatile() - stage %p loadVolatile() returned: %s\n", 
+                            stage.get(), stageLoadResult ? "SUCCESS" : "FAILURE");
+                    fflush(logFile2b);
+                    fclose(logFile2b);
+                }
+#endif
+                if (!stageLoadResult) {
+#ifdef __WIIU__
+                    FILE* logFile2c = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile2c) {
+                        fprintf(logFile2c, "Shader::loadVolatile() - STAGE LOAD FAILED! Aborting shader load.\n");
+                        fflush(logFile2c);
+                        fclose(logFile2c);
+                    }
+#endif
+                    return false;
+                }
+            }
         }
 
         if (!this->setShaderStages(&this->program, this->stages))
-            return true;
+        {
+#ifdef __WIIU__
+            FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile3) {
+                fprintf(logFile3, "Shader::loadVolatile() - setShaderStages() failed\n");
+                fflush(logFile3);
+                fclose(logFile3);
+            }
+#endif
+            return false;  // Changed from true to false - this should be an error!
+        }
+
+#ifdef __WIIU__
+        FILE* logFile3b = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3b) {
+            fprintf(logFile3b, "Shader::loadVolatile() - setShaderStages() succeeded, calling mapActiveUniforms()\n");
+            fflush(logFile3b);
+            fclose(logFile3b);
+        }
+#endif
 
         this->mapActiveUniforms();
+
+#ifdef __WIIU__
+        FILE* logFile3c = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3c) {
+            fprintf(logFile3c, "Shader::loadVolatile() - mapActiveUniforms() completed, initializing shader attributes\n");
+            fflush(logFile3c);
+            fclose(logFile3c);
+        }
+#endif
 
         // clang-format off
         WHBGfxInitShaderAttribute(&this->program, "inPos",      0, POSITION_OFFSET, GX2_ATTRIB_FORMAT_FLOAT_32_32);
@@ -118,8 +201,45 @@ namespace love
         WHBGfxInitShaderAttribute(&this->program, "inColor",    0, COLOR_OFFSET,    GX2_ATTRIB_FORMAT_FLOAT_32_32_32_32);
         // clang-format on
 
+#ifdef __WIIU__
+        FILE* logFile3d = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile3d) {
+            fprintf(logFile3d, "Shader::loadVolatile() - shader attributes initialized, calling WHBGfxInitFetchShader()\n");
+            fflush(logFile3d);
+            fclose(logFile3d);
+        }
+#endif
+
         if (!WHBGfxInitFetchShader(&this->program))
+        {
+#ifdef __WIIU__
+            FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile4) {
+                fprintf(logFile4, "Shader::loadVolatile() - WHBGfxInitFetchShader() failed\n");
+                fflush(logFile4);
+                fclose(logFile4);
+            }
+#endif
             return false;
+        }
+
+#ifdef __WIIU__
+        FILE* logFile4b = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile4b) {
+            fprintf(logFile4b, "Shader::loadVolatile() - WHBGfxInitFetchShader() succeeded\n");
+            fflush(logFile4b);
+            fclose(logFile4b);
+        }
+#endif
+
+#ifdef __WIIU__
+        FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile5) {
+            fprintf(logFile5, "Shader::loadVolatile() completed successfully\n");
+            fflush(logFile5);
+            fclose(logFile5);
+        }
+#endif
 
         return true;
     }

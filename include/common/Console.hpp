@@ -33,7 +33,7 @@ namespace love
             Console::mainCoreIdSet = true;
         }
 
-        static uint32_t isMainCoreId(uint32_t id)
+        static bool isMainCoreId(uint32_t id)
         {
             return Console::mainCoreId == id;
         }

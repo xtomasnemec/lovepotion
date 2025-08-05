@@ -12,11 +12,45 @@ using namespace love;
 
 int Wrap_Sound::newDecoder(lua_State* L)
 {
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "Wrap_Sound::newDecoder() called with %d arguments\n", lua_gettop(L));
+        for (int i = 1; i <= lua_gettop(L); i++) {
+            fprintf(logFile, "  Argument %d type: %d\n", i, lua_type(L, i));
+            if (lua_type(L, i) == LUA_TSTRING) {
+                fprintf(logFile, "  Argument %d string: %s\n", i, lua_tostring(L, i));
+            } else if (lua_type(L, i) == LUA_TNUMBER) {
+                fprintf(logFile, "  Argument %d number: %f\n", i, lua_tonumber(L, i));
+            }
+        }
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
     int bufferSize = luaL_optinteger(L, 2, Decoder::DEFAULT_BUFFER_SIZE);
     Stream* stream = nullptr;
 
+#ifdef __WIIU__
+    FILE* logFile_check = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_check) {
+        fprintf(logFile_check, "newDecoder() - bufferSize: %d, checking if can get file\n", bufferSize);
+        fflush(logFile_check);
+        fclose(logFile_check);
+    }
+#endif
+
     if (luax_cangetfile(L, 1))
     {
+#ifdef __WIIU__
+        FILE* logFile_file = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_file) {
+            fprintf(logFile_file, "newDecoder() - can get file, processing file input\n");
+            fflush(logFile_file);
+            fclose(logFile_file);
+        }
+#endif
         Decoder::StreamSource source = Decoder::STREAM_FILE;
         const char* sourceType       = lua_isnoneornil(L, 3) ? nullptr : luaL_checkstring(L, 3);
 
@@ -25,12 +59,36 @@ int Wrap_Sound::newDecoder(lua_State* L)
 
         if (source == Decoder::STREAM_FILE)
         {
+#ifdef __WIIU__
+            FILE* logFile_file2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile_file2) {
+                fprintf(logFile_file2, "newDecoder() - about to get file and open for reading\n");
+                fflush(logFile_file2);
+                fclose(logFile_file2);
+            }
+#endif
             auto* file = luax_getfile(L, 1);
             luax_catchexcept(L, [&]() { file->open(File::MODE_READ); });
             stream = file;
+#ifdef __WIIU__
+            FILE* logFile_file3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile_file3) {
+                fprintf(logFile_file3, "newDecoder() - file opened successfully, stream: %p\n", stream);
+                fflush(logFile_file3);
+                fclose(logFile_file3);
+            }
+#endif
         }
         else
         {
+#ifdef __WIIU__
+            FILE* logFile_data = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile_data) {
+                fprintf(logFile_data, "newDecoder() - creating DataStream from file data\n");
+                fflush(logFile_data);
+                fclose(logFile_data);
+            }
+#endif
             luax_catchexcept(L, [&]() {
                 StrongRef<FileData> data(luax_getfiledata(L, 1), Acquire::NO_RETAIN);
                 stream = new DataStream(data);
@@ -39,16 +97,41 @@ int Wrap_Sound::newDecoder(lua_State* L)
     }
     else if (luax_istype(L, 1, Data::type))
     {
+#ifdef __WIIU__
+        FILE* logFile_dtype = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_dtype) {
+            fprintf(logFile_dtype, "newDecoder() - processing Data type input\n");
+            fflush(logFile_dtype);
+            fclose(logFile_dtype);
+        }
+#endif
         Data* data = luax_checktype<Data>(L, 1);
         luax_catchexcept(L, [&]() { stream = new DataStream(data); });
     }
     else
     {
+#ifdef __WIIU__
+        FILE* logFile_stream = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_stream) {
+            fprintf(logFile_stream, "newDecoder() - processing Stream type input\n");
+            fflush(logFile_stream);
+            fclose(logFile_stream);
+        }
+#endif
         stream = luax_checktype<Stream>(L, 1);
         stream->retain();
     }
 
     Decoder* decoder = nullptr;
+
+#ifdef __WIIU__
+    FILE* logFile_create = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_create) {
+        fprintf(logFile_create, "newDecoder() - about to create decoder with stream: %p, bufferSize: %d\n", stream, bufferSize);
+        fflush(logFile_create);
+        fclose(logFile_create);
+    }
+#endif
 
     // clang-format off
     luax_catchexcept(L, [&]() {
@@ -57,8 +140,26 @@ int Wrap_Sound::newDecoder(lua_State* L)
     );
     // clang-format on
 
+#ifdef __WIIU__
+    FILE* logFile_result = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_result) {
+        fprintf(logFile_result, "newDecoder() - decoder created: %p\n", decoder);
+        fflush(logFile_result);
+        fclose(logFile_result);
+    }
+#endif
+
     luax_pushtype(L, decoder);
     decoder->release();
+
+#ifdef __WIIU__
+    FILE* logFile_end = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_end) {
+        fprintf(logFile_end, "newDecoder() - completed successfully\n");
+        fflush(logFile_end);
+        fclose(logFile_end);
+    }
+#endif
 
     return 1;
 }

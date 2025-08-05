@@ -3,7 +3,7 @@ R"luastring"--(
 -- There is a matching delimiter at the bottom of the file.
 
 --[[
-Copyright (c) 2006-2024 LOVE Development Team
+Copyright (c) 2006-2024 LOVE De        -- Pump events
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -22,9 +22,7 @@ freely, subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 --]]
 
-local love = require("love")
-
-function love.createhandlers()
+local love = require("love")function love.createhandlers()
     -- Standard callback handlers.
     love.handlers = setmetatable({
         keypressed = function(b, s, r)
@@ -197,8 +195,11 @@ function love.run()
     return function()
         -- Process events.
         if love.event then
+            print("DEBUG: About to pump events (frame " .. frame_count .. ")")
             love.event.pump()
+            print("DEBUG: Event pump completed, about to poll events")
             for name, a, b, c, d, e, f, g, h in love.event.poll() do
+                print("DEBUG: Got event: " .. tostring(name))
                 if name == "quit" then
                     if not love.quit or not love.quit() then
                         return a or 0, b
@@ -206,6 +207,7 @@ function love.run()
                 end
                 love.handlers[name](a, b, c, d, e, f, g, h)
             end
+            print("DEBUG: Event polling completed")
         end
 
         -- Update dt, as we'll be passing it to update
@@ -213,14 +215,18 @@ function love.run()
         
         -- Frame counter for debugging
         frame_count = frame_count + 1
+        print("DEBUG: Starting frame " .. frame_count .. " with dt=" .. tostring(dt))
         if frame_count == 10 or frame_count == 30 or frame_count == 50 then
             print("Frame counter: " .. frame_count .. " (console: " .. tostring(love._console_name) .. ")")
         end
 
         -- Call update and draw
+        print("DEBUG: About to call love.update()")
         if love.update then love.update(dt) end -- will pass 0 if love.timer is disabled
+        print("DEBUG: love.update() completed")
 
         if love.graphics and love.graphics.isActive() then
+            print("DEBUG: About to start graphics rendering")
             local display_count = love.window.getDisplayCount()
             for display_index = 1, display_count do
                 local display_name = love.window.getDisplayName(display_index)
@@ -234,9 +240,13 @@ function love.run()
                 if love.draw then love.draw(display_name, stereoscopic_depth) end
                 love.graphics.copyCurrentScanBuffer()
             end
+            print("DEBUG: About to present graphics")
             love.graphics.present()
+            print("DEBUG: Graphics present completed")
         end
+        print("DEBUG: About to sleep")
         if love.timer then love.timer.sleep(0.001) end
+        print("DEBUG: Sleep completed, frame " .. frame_count .. " finished")
     end
 end
 

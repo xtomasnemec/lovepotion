@@ -369,7 +369,9 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
 #ifdef __WIIU__
             if (loopCount < 3)
             {
-                simpleLog("love::mainLoop() returned successfully");
+                char resultBuffer[256];
+                sprintf(resultBuffer, "love::mainLoop() returned %s", mainLoopResult ? "true" : "false");
+                simpleLog(resultBuffer);
             }
             
             // Send resize event after first successful mainLoop call to ensure canvas initialization

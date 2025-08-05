@@ -246,29 +246,129 @@ namespace love
 
     static bool isRunning()
     {
-        if (!Console::isMainCoreId(OSGetMainCoreId()))
+#ifdef __WIIU__
+        FILE* logFile_start = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_start) {
+            fprintf(logFile_start, "isRunning(): Function entered\n");
+            fflush(logFile_start);
+            fclose(logFile_start);
+        }
+        
+        FILE* logFile_main = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_main) {
+            fprintf(logFile_main, "isRunning(): About to call OSGetMainCoreId()\n");
+            fflush(logFile_main);
+            fclose(logFile_main);
+        }
+#endif
+
+        uint32_t mainCoreId = OSGetMainCoreId();
+        
+#ifdef __WIIU__
+        FILE* logFile_core = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_core) {
+            fprintf(logFile_core, "isRunning(): OSGetMainCoreId() returned %u\n", mainCoreId);
+            fflush(logFile_core);
+            fclose(logFile_core);
+        }
+        
+        FILE* logFile_check = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_check) {
+            fprintf(logFile_check, "isRunning(): About to call Console::isMainCoreId()\n");
+            fflush(logFile_check);
+            fclose(logFile_check);
+        }
+#endif
+
+        if (!Console::isMainCoreId(mainCoreId))
         {
-            ProcUISubProcessMessages(true);
+#ifdef __WIIU__
+            FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile) {
+                fprintf(logFile, "isRunning(): Not main core, calling ProcUISubProcessMessages(false)\n");
+                fflush(logFile);
+                fclose(logFile);
+            }
+#endif
+            ProcUISubProcessMessages(false);
             return true;
         }
 
-        const auto status = ProcUIProcessMessages(true);
+        const auto status = ProcUIProcessMessages(false);
+
+#ifdef __WIIU__
+        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile2) {
+            fprintf(logFile2, "isRunning(): ProcUIProcessMessages(false) returned status: %d\n", status);
+            fflush(logFile2);
+            fclose(logFile2);
+        }
+#endif
 
         switch (status)
         {
             case PROCUI_STATUS_IN_FOREGROUND:
+#ifdef __WIIU__
+                {
+                    FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile3) {
+                        fprintf(logFile3, "isRunning(): PROCUI_STATUS_IN_FOREGROUND - sending focus(true)\n");
+                        fflush(logFile3);
+                        fclose(logFile3);
+                    }
+                }
+#endif
                 EventQueue::getInstance().sendFocus(true);
                 break;
             case PROCUI_STATUS_RELEASE_FOREGROUND:
+#ifdef __WIIU__
+                {
+                    FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile4) {
+                        fprintf(logFile4, "isRunning(): PROCUI_STATUS_RELEASE_FOREGROUND - sending focus(false)\n");
+                        fflush(logFile4);
+                        fclose(logFile4);
+                    }
+                }
+#endif
                 EventQueue::getInstance().sendFocus(false);
                 ProcUIDrawDoneRelease();
                 break;
             case PROCUI_STATUS_EXITING:
+#ifdef __WIIU__
+                {
+                    FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile5) {
+                        fprintf(logFile5, "isRunning(): PROCUI_STATUS_EXITING - returning false!\n");
+                        fflush(logFile5);
+                        fclose(logFile5);
+                    }
+                }
+#endif
                 EventQueue::getInstance().sendQuit();
                 return false;
             default:
+#ifdef __WIIU__
+                {
+                    FILE* logFile6 = fopen("fs:/vol/external01/simple_debug.log", "a");
+                    if (logFile6) {
+                        fprintf(logFile6, "isRunning(): Unknown ProcUI status: %d (falling through to return true)\n", status);
+                        fflush(logFile6);
+                        fclose(logFile6);
+                    }
+                }
+#endif
                 break;
         }
+
+#ifdef __WIIU__
+        FILE* logFile7 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile7) {
+            fprintf(logFile7, "isRunning(): returning true\n");
+            fflush(logFile7);
+            fclose(logFile7);
+        }
+#endif
 
         return true;
     }
@@ -326,6 +426,40 @@ namespace love
             fclose(logFile);
         }
 #endif
+        
+        // Check if running first before anything else
+#ifdef __WIIU__
+        FILE* logFile_pre = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_pre) {
+            fprintf(logFile_pre, "About to call isRunning()...\n");
+            fflush(logFile_pre);
+            fclose(logFile_pre);
+        }
+#endif
+        
+        bool running = true; // BYPASS isRunning() - force true
+        
+#ifdef __WIIU__
+        FILE* logFile0 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile0) {
+            fprintf(logFile0, "BYPASSED isRunning() - forced to: %s\n", running ? "true" : "false");
+            fflush(logFile0);
+            fclose(logFile0);
+        }
+#endif
+        
+        if (!running)
+        {
+#ifdef __WIIU__
+            FILE* logFileExit = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFileExit) {
+                fprintf(logFileExit, "isRunning() is false, returning false from mainLoop()\n");
+                fflush(logFileExit);
+                fclose(logFileExit);
+            }
+#endif
+            return false;
+        }
         
         if (!s_Shutdown)
         {
@@ -1001,7 +1135,6 @@ namespace love
             }
         }
 
-        bool running = isRunning();
         DebugLogger::log("mainLoop() returning %s", running ? "true" : "false");
         return running;
     }

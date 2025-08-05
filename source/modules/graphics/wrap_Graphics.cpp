@@ -17,6 +17,8 @@
 #include "modules/image/wrap_Image.hpp"
 #include "modules/image/wrap_ImageData.hpp"
 
+#include <fstream>
+
 using namespace love;
 
 #define instance() (Module::getInstance<Graphics>(Module::M_GRAPHICS))
@@ -962,14 +964,89 @@ static int pushNewTexture(lua_State* L, TextureBase::Slices* slices, const Textu
 {
     StrongRef<TextureBase> texture;
 
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "pushNewTexture() called - about to create texture\n");
+        fprintf(logFile, "  settings.type: %d, slices: %p\n", settings.type, slices);
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
     // clang-format off
     luax_catchexcept(L,
-        [&]() { texture.set(instance()->newTexture(settings, slices), Acquire::NO_RETAIN); },
-        [&](bool) { if (slices) slices->clear(); }
+        [&]() { 
+#ifdef __WIIU__
+            FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile2) {
+                fprintf(logFile2, "pushNewTexture() - calling instance()->newTexture()\n");
+                fflush(logFile2);
+                fclose(logFile2);
+            }
+#endif
+            texture.set(instance()->newTexture(settings, slices), Acquire::NO_RETAIN);
+#ifdef __WIIU__
+            FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile3) {
+                fprintf(logFile3, "pushNewTexture() - newTexture() returned: %p\n", texture.get());
+                fflush(logFile3);
+                fclose(logFile3);
+            }
+#endif
+        },
+        [&](bool) { 
+#ifdef __WIIU__
+            FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
+            if (logFile4) {
+                fprintf(logFile4, "pushNewTexture() - EXCEPTION occurred in newTexture()\n");
+                fflush(logFile4);
+                fclose(logFile4);
+            }
+#endif
+            if (slices) slices->clear(); 
+        }
     );
     // clang-format on
 
+#ifdef __WIIU__
+    FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile5) {
+        fprintf(logFile5, "pushNewTexture() - about to push texture to Lua stack\n");
+        fprintf(logFile5, "pushNewTexture() - texture.get() = %p\n", texture.get());
+        if (texture.get() == nullptr) {
+            fprintf(logFile5, "pushNewTexture() - ERROR: texture is NULL, cannot push to Lua\n");
+        } else {
+            fprintf(logFile5, "pushNewTexture() - texture is valid, pushing to Lua\n");
+        }
+        fflush(logFile5);
+        fclose(logFile5);
+    }
+#endif
+
+    if (texture.get() == nullptr) {
+#ifdef __WIIU__
+        FILE* logFile6 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile6) {
+            fprintf(logFile6, "pushNewTexture() - returning luaL_error due to NULL texture\n");
+            fflush(logFile6);
+            fclose(logFile6);
+        }
+#endif
+        return luaL_error(L, "Texture creation failed");
+    }
+
     luax_pushtype(L, texture);
+    
+#ifdef __WIIU__
+    FILE* logFile7 = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile7) {
+        fprintf(logFile7, "pushNewTexture() - texture successfully pushed to Lua stack\n");
+        fflush(logFile7);
+        fclose(logFile7);
+    }
+#endif
+    
     return 1;
 }
 
@@ -978,7 +1055,15 @@ int Wrap_Graphics::newTexture(lua_State* L)
 #ifdef __WIIU__
     FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
     if (logFile) {
-        fprintf(logFile, "newTexture() called from Lua\n");
+        fprintf(logFile, "newTexture() called from Lua with %d arguments\n", lua_gettop(L));
+        if (lua_gettop(L) > 0) {
+            int argType = lua_type(L, 1);
+            fprintf(logFile, "  First argument type: %d (%s)\n", argType, lua_typename(L, argType));
+            if (argType == LUA_TSTRING) {
+                const char* str = lua_tostring(L, 1);
+                fprintf(logFile, "  First argument string: %s\n", str ? str : "NULL");
+            }
+        }
         fflush(logFile);
         fclose(logFile);
     }
@@ -1454,7 +1539,15 @@ int Wrap_Graphics::newFont(lua_State* L)
 #ifdef __WIIU__
     FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
     if (logFile) {
-        fprintf(logFile, "newFont() called from Lua\n");
+        fprintf(logFile, "newFont() called from Lua with %d arguments\n", lua_gettop(L));
+        for (int i = 1; i <= lua_gettop(L); i++) {
+            fprintf(logFile, "  Argument %d type: %d\n", i, lua_type(L, i));
+            if (lua_type(L, i) == LUA_TSTRING) {
+                fprintf(logFile, "  Argument %d string: %s\n", i, lua_tostring(L, i));
+            } else if (lua_type(L, i) == LUA_TNUMBER) {
+                fprintf(logFile, "  Argument %d number: %f\n", i, lua_tonumber(L, i));
+            }
+        }
         fflush(logFile);
         fclose(logFile);
     }
@@ -1462,17 +1555,61 @@ int Wrap_Graphics::newFont(lua_State* L)
 
     FontBase* font = nullptr;
 
+#ifdef __WIIU__
+    FILE* logFile_step1 = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_step1) {
+        fprintf(logFile_step1, "newFont() - checking if need to create rasterizer\n");
+        fflush(logFile_step1);
+        fclose(logFile_step1);
+    }
+#endif
+
     if (!luax_istype(L, 1, Rasterizer::type))
     {
+#ifdef __WIIU__
+        FILE* logFile_rast = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_rast) {
+            fprintf(logFile_rast, "newFont() - creating rasterizer from arguments\n");
+            fflush(logFile_rast);
+            fclose(logFile_rast);
+        }
+#endif
         std::vector<int> indices {};
 
         for (int index = 0; index < lua_gettop(L); index++)
             indices.push_back(index + 1);
 
         luax_convobj(L, indices, "font", "newRasterizer");
+#ifdef __WIIU__
+        FILE* logFile_rast2 = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile_rast2) {
+            fprintf(logFile_rast2, "newFont() - rasterizer created successfully\n");
+            fflush(logFile_rast2);
+            fclose(logFile_rast2);
+        }
+#endif
     }
 
+#ifdef __WIIU__
+    FILE* logFile_check = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_check) {
+        fprintf(logFile_check, "newFont() - about to get rasterizer from Lua stack\n");
+        fflush(logFile_check);
+        fclose(logFile_check);
+    }
+#endif
+
     auto* rasterizer = luax_checktype<Rasterizer>(L, 1);
+
+#ifdef __WIIU__
+    FILE* logFile_rast_ptr = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_rast_ptr) {
+        fprintf(logFile_rast_ptr, "newFont() - got rasterizer: %p\n", rasterizer);
+        fflush(logFile_rast_ptr);
+        fclose(logFile_rast_ptr);
+    }
+#endif
+
     luax_catchexcept(L, [&]() { font = instance()->newFont(rasterizer); });
 
 #ifdef __WIIU__
@@ -1484,8 +1621,36 @@ int Wrap_Graphics::newFont(lua_State* L)
     }
 #endif
 
+#ifdef __WIIU__
+    FILE* logFile_push = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_push) {
+        fprintf(logFile_push, "newFont() - about to push font to Lua stack\n");
+        fflush(logFile_push);
+        fclose(logFile_push);
+    }
+#endif
+
     luax_pushtype(L, font);
+
+#ifdef __WIIU__
+    FILE* logFile_release = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_release) {
+        fprintf(logFile_release, "newFont() - about to release font\n");
+        fflush(logFile_release);
+        fclose(logFile_release);
+    }
+#endif
+
     font->release();
+
+#ifdef __WIIU__
+    FILE* logFile_end = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile_end) {
+        fprintf(logFile_end, "newFont() - completed successfully\n");
+        fflush(logFile_end);
+        fclose(logFile_end);
+    }
+#endif
 
     return 1;
 }
@@ -1514,18 +1679,35 @@ int Wrap_Graphics::print(lua_State* L)
     // Enhanced logging for error handler debugging
     FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
     if (logFile) {
+        bool shouldLog = false;
+        
+        // Always log first 15 prints, or prints 10-25, or error messages, or long texts
         if (printDetailCount <= 15 || 
             (printDetailCount > 10 && printDetailCount <= 25) ||
             (!strings.empty() && (strings[0].string.find("Error") != std::string::npos || 
                                  strings[0].string.find("error") != std::string::npos ||
-                                 strings[0].string.find("ERROR") != std::string::npos))) {
-            
+                                 strings[0].string.find("ERROR") != std::string::npos)) ||
+            (!strings.empty() && strings[0].string.length() > 100)) {
+            shouldLog = true;
+        }
+        
+        if (shouldLog) {
             fprintf(logFile, "print() ENHANCED (#%d): strings.size()=%zu\n", 
                    printDetailCount, strings.size());
             
             if (!strings.empty()) {
-                fprintf(logFile, "  text='%.100s'\n", strings[0].string.c_str());
-                fprintf(logFile, "  text_length=%zu\n", strings[0].string.length());
+                // For very long texts, print more to help debug
+                if (strings[0].string.length() > 300) {
+                    fprintf(logFile, "  LONG_TEXT_DETECTED: text_length=%zu\n", strings[0].string.length());
+                    fprintf(logFile, "  text_start='%.200s'\n", strings[0].string.c_str());
+                    if (strings[0].string.length() > 200) {
+                        size_t startPos = strings[0].string.length() - 200;
+                        fprintf(logFile, "  text_end='%.200s'\n", strings[0].string.substr(startPos).c_str());
+                    }
+                } else {
+                    fprintf(logFile, "  text='%.100s'\n", strings[0].string.c_str());
+                    fprintf(logFile, "  text_length=%zu\n", strings[0].string.length());
+                }
             } else {
                 fprintf(logFile, "  text=EMPTY_STRINGS_VECTOR\n");
             }
@@ -2586,6 +2768,15 @@ int Wrap_Graphics::newShader(lua_State* L)
     std::vector<std::string> filepaths;
     ShaderBase::CompileOptions options;
     
+    // Debug: Log shader creation at Lua wrapper level
+    const std::string logPath = "/vol/content/simple_debug.log";
+    std::ofstream debugFile(logPath, std::ios::app);
+    if (debugFile.is_open())
+    {
+        debugFile << "[DEBUG] Wrap_Graphics::newShader() - Lua wrapper called with " << lua_gettop(L) << " arguments" << std::endl;
+        debugFile.close();
+    }
+    
     // Handle different argument patterns:
     // newShader(vertexCode, fragmentCode) - string codes
     // newShader(vertexFile, fragmentFile) - file paths
@@ -2595,10 +2786,26 @@ int Wrap_Graphics::newShader(lua_State* L)
     {
         const char* code1 = luaL_checkstring(L, 1);
         
+        // Debug: Log shader paths/code
+        std::ofstream debugFile2(logPath, std::ios::app);
+        if (debugFile2.is_open())
+        {
+            debugFile2 << "[DEBUG] Wrap_Graphics::newShader() - First argument: " << std::string(code1) << std::endl;
+            debugFile2.close();
+        }
+        
         if (lua_gettop(L) >= 2 && lua_type(L, 2) == LUA_TSTRING)
         {
             // Two strings: vertex and fragment code/files
             const char* code2 = luaL_checkstring(L, 2);
+            
+            std::ofstream debugFile3(logPath, std::ios::app);
+            if (debugFile3.is_open())
+            {
+                debugFile3 << "[DEBUG] Wrap_Graphics::newShader() - Second argument: " << std::string(code2) << std::endl;
+                debugFile3.close();
+            }
+            
             filepaths.push_back(std::string(code1));
             filepaths.push_back(std::string(code2));
         }
@@ -2615,7 +2822,21 @@ int Wrap_Graphics::newShader(lua_State* L)
     
     ShaderBase* shader = nullptr;
     luax_catchexcept(L, [&]() {
+        std::ofstream debugFile4(logPath, std::ios::app);
+        if (debugFile4.is_open())
+        {
+            debugFile4 << "[DEBUG] Wrap_Graphics::newShader() - About to call graphics->newShader() with " << filepaths.size() << " file paths" << std::endl;
+            debugFile4.close();
+        }
+        
         shader = graphics->newShader(filepaths, options);
+        
+        std::ofstream debugFile5(logPath, std::ios::app);
+        if (debugFile5.is_open())
+        {
+            debugFile5 << "[DEBUG] Wrap_Graphics::newShader() - graphics->newShader() returned shader pointer: " << (void*)shader << std::endl;
+            debugFile5.close();
+        }
     });
     
     luax_pushtype(L, shader);

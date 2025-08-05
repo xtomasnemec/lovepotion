@@ -34,14 +34,18 @@ RUN echo "=== Installing dependencies ===" && \
   #  java -jar /opt/wav2btsnd/wav2btsnd.jar /project/platform/cafe/bootSound.wav /project/platform/cafe/bootSound.btsnd; \
    # else echo "No bootSound.wav found, skipping btsnd conversion."; fi
 
-# Download precompiled CafeGLSL
-RUN echo "=== Downloading CafeGLSL ===" && \
+# Download and install CafeGLSL static compiler (Linux .elf)
+RUN echo "=== Installing CafeGLSL static shader compiler ===" && \
     mkdir -p /opt/CafeGLSL && \
     cd /opt/CafeGLSL && \
-    wget -O glslcompiler.rpl https://github.com/Exzap/CafeGLSL/releases/download/v0.2.0/glslcompiler.rpl && \
-    wget -O CafeGLSLCompiler.h https://raw.githubusercontent.com/Exzap/CafeGLSL/main/cafecompiler/CafeGLSLCompiler.h && \
-    echo "=== CafeGLSL download completed ===" && \
-    ls -la
+    wget -O glslcompiler.elf https://github.com/Exzap/CafeGLSL/releases/download/v0.2.0/glslcompiler.elf && \
+    wget -O CafeGLSLCompiler.h https://raw.githubusercontent.com/Exzap/CafeGLSL/e3e385c700e6e70dd2d9d6cd015162991084df6b/cafecompiler/CafeGLSLCompiler.h && \
+    chmod +x glslcompiler.elf && \
+    cp glslcompiler.elf /usr/local/bin/ && \
+    cp CafeGLSLCompiler.h /opt/devkitpro/wut/include/ && \
+    echo "=== CafeGLSL static compiler installation completed ===" && \
+    ls -la && \
+    which glslcompiler.elf || echo "glslcompiler.elf not in PATH but copied to /usr/local/bin/"
 
 WORKDIR /project
 
@@ -59,22 +63,56 @@ RUN echo "=== Creating game.zip from game folder ===" && \
     echo "=== game.love created successfully ===" && \
     ls -la /project/build/game.love
 
+# Compile all shaders statically using CafeGLSL
+RUN echo "=== Compiling shaders with CafeGLSL static compiler ===" && \
+    mkdir -p /project/platform/cafe/content/shaders/game && \
+    cd /project && \
+    echo "=== Converting .fs shaders to GLSL and compiling to .gsh ===" && \
+    # Create a default vertex shader for LÖVE 2D \
+    echo "#version 330 core" > /tmp/default_vs.glsl && \
+    echo "layout(location = 0) in vec4 VertexPosition;" >> /tmp/default_vs.glsl && \
+    echo "layout(location = 1) in vec4 VertexTexCoord;" >> /tmp/default_vs.glsl && \
+    echo "layout(location = 2) in vec4 VertexColor;" >> /tmp/default_vs.glsl && \
+    echo "uniform mat4 TransformProjectionMatrix;" >> /tmp/default_vs.glsl && \
+    echo "varying vec4 VaryingTexCoord;" >> /tmp/default_vs.glsl && \
+    echo "varying vec4 VaryingColor;" >> /tmp/default_vs.glsl && \
+    echo "void main() {" >> /tmp/default_vs.glsl && \
+    echo "    VaryingTexCoord = VertexTexCoord;" >> /tmp/default_vs.glsl && \
+    echo "    VaryingColor = VertexColor;" >> /tmp/default_vs.glsl && \
+    echo "    gl_Position = TransformProjectionMatrix * VertexPosition;" >> /tmp/default_vs.glsl && \
+    echo "}" >> /tmp/default_vs.glsl && \
+    find game/resources/shaders -name "*.fs" | while read shader; do \
+        name=$(basename "$shader" .fs); \
+        echo "Processing shader: $name"; \
+        # Convert LÖVE .fs to GLSL fragment shader \
+        echo "#version 330 core" > "/tmp/${name}_fs.glsl"; \
+        echo "uniform sampler2D MainTexture;" >> "/tmp/${name}_fs.glsl"; \
+        echo "uniform float time;" >> "/tmp/${name}_fs.glsl"; \
+        echo "uniform vec2 love_ScreenSize;" >> "/tmp/${name}_fs.glsl"; \
+        echo "in vec4 VaryingTexCoord;" >> "/tmp/${name}_fs.glsl"; \
+        echo "in vec4 VaryingColor;" >> "/tmp/${name}_fs.glsl"; \
+        echo "out vec4 fragColor;" >> "/tmp/${name}_fs.glsl"; \
+        echo "void main() {" >> "/tmp/${name}_fs.glsl"; \
+        echo "    fragColor = texture(MainTexture, VaryingTexCoord.xy) * VaryingColor;" >> "/tmp/${name}_fs.glsl"; \
+        echo "}" >> "/tmp/${name}_fs.glsl"; \
+        # Compile to .gsh using CafeGLSL with default vertex shader \
+        /opt/CafeGLSL/glslcompiler.elf -vs "/tmp/default_vs.glsl" -ps "/tmp/${name}_fs.glsl" -o "/project/platform/cafe/content/shaders/game/${name}.gsh" && \
+        echo "Successfully compiled ${name}.gsh" || echo "Failed to compile ${name}"; \
+    done && \
+    echo "=== Shader compilation completed ===" && \
+    ls -la /project/platform/cafe/content/shaders/game/ || echo "No game shaders directory found"
+
 # Build
 RUN mkdir -p build && cd build && \
     ls -lh /project/platform/cafe/ && \
     echo "=== Starting CMake configuration ===" && \
-    echo "=== Copying CafeGLSL library ===" && \
-    mkdir -p /project/platform/cafe/content && \
-    mkdir -p /project/include/common && \
-    cp /opt/CafeGLSL/*.rpl /project/platform/cafe/content/ 2>/dev/null || echo "No CafeGLSL .rpl files found" && \
-    cp /opt/CafeGLSL/CafeGLSLCompiler.h /project/include/common/ 2>/dev/null || echo "No CafeGLSL header found" && \
-    ls -la /project/platform/cafe/ && \
-    ls -la /project/platform/cafe/content/ 2>/dev/null || echo "Content directory not found" && \
-    cmake .. -DNINTENDO_WIIU=ON -DUSE_CAFEGLSL=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/WiiU.cmake && \
+    echo "=== Pre-compiled shaders available ===" && \
+    ls -la /project/platform/cafe/content/shaders/game/ 2>/dev/null || echo "No pre-compiled shaders found" && \
+    cmake .. -DNINTENDO_WIIU=ON -DUSE_CAFEGLSL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/WiiU.cmake -G Ninja && \
     echo "=== CMake configuration completed ===" && \
-    echo "=== Starting make build ===" && \
-    make -j$(nproc) || (echo "=== Make failed, showing build directory contents ===" && ls -la && exit 1) && \
-    echo "=== Make build completed ===" && \
+    echo "=== Starting ninja build ===" && \
+    ninja || (echo "=== Ninja failed, showing build directory contents ===" && ls -la && exit 1) && \
+    echo "=== Ninja build completed ===" && \
     echo "=== BUILD OUTPUT DEBUG ===" && \
     ls -la && \
     echo "=== FUSING GAME DATA INTO WUHB ===" && \

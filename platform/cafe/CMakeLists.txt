@@ -7,6 +7,23 @@ dkp_track_assets(${PROJECT_NAME}_cafe_content
         texture.gsh
 )
 
+# Track pre-compiled shaders from CafeGLSL if available
+file(GLOB COMPILED_SHADERS "${CMAKE_SOURCE_DIR}/platform/cafe/shaders/*.gsh")
+if(COMPILED_SHADERS)
+    list(LENGTH COMPILED_SHADERS SHADER_COUNT)
+    foreach(shader ${COMPILED_SHADERS})
+        get_filename_component(shader_name ${shader} NAME)
+        message(STATUS "Adding pre-compiled shader: ${shader_name}")
+    endforeach()
+    dkp_track_assets(${PROJECT_NAME}_cafe_content
+        FOLDER shaders
+        FILES ${COMPILED_SHADERS}
+    )
+    message(STATUS "CafeGLSL: Added ${SHADER_COUNT} pre-compiled shaders")
+else()
+    message(STATUS "CafeGLSL: No pre-compiled shaders found in ${CMAKE_SOURCE_DIR}/platform/cafe/shaders/")
+endif()
+
 dkp_track_assets(${PROJECT_NAME}_cafe_content
     FOLDER nogame
     FILES
