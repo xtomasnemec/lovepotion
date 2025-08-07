@@ -437,6 +437,35 @@ function love.init()
 	if love.filesystem then
 		-- love.filesystem._setAndroidSaveExternal(c.externalstorage)
 		love.filesystem.setIdentity(c.identity or love.filesystem.getIdentity(), c.appendidentity)
+		
+		-- Simple loading screen for Wii U
+		if love.graphics and love.graphics.isCreated() then
+			love.graphics.clear(0.1, 0.1, 0.1, 1.0)  -- Dark background
+			
+			-- Draw loading text with 3x larger font
+			if love.graphics.print then
+				love.graphics.push()  -- Save current transform
+				love.graphics.setColor(1, 1, 1, 1)  -- White text
+				local w, h = love.graphics.getDimensions()
+				
+				-- Scale text to 3x size from center
+				love.graphics.translate(w/2, h/2)
+				love.graphics.scale(3, 3)
+				love.graphics.translate(-w/6, -h/6)  -- Adjust for scaling
+				
+				love.graphics.print("Loading LÖVE Potion...", -100/3, -50/3)
+				love.graphics.print("Initializing game engine...", -120/3, -20/3)
+				love.graphics.print("Loading shaders and assets...", -130/3, 10/3)
+				love.graphics.print("Please wait...", -60/3, 40/3)
+				
+				love.graphics.pop()  -- Restore transform
+			end
+			
+			if love.graphics.present then
+				love.graphics.present()
+			end
+		end
+		
 		if love.filesystem.getInfo(main_file) then
 			require(main_file:gsub("%.lua$", ""))
 		end

@@ -31,6 +31,12 @@ namespace love
         void setRelativeMode(bool relative) override;
 
         void updateTouchPosition();
+        
+        // Wiimote support functions
+        void updateWiimoteInput();
+        bool isWiimoteButtonDown(int button) const override;
+        bool wasWiimoteButtonPressed(int button) const override;
+        bool wasWiimoteButtonReleased(int button) const override;
 
       private:
         double x = 0.0;
@@ -41,5 +47,11 @@ namespace love
         
         // Wii U GamePad touch screen coordinates
         VPADTouchData touchData;
+        
+        // Wiimote state tracking
+        KPADStatus wiimoteStatus[4];
+        KPADStatus prevWiimoteStatus[4];
+        bool wiimoteConnected[4];
+        int wiimoteActiveCount;
     };
 } // namespace love

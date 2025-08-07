@@ -48,8 +48,8 @@ namespace love
 
     const char* Shader::getDefaultStagePath(StandardShader shader, ShaderStageType stage)
     {
-        LOVE_UNUSED(stage);
-
+        // For Wii U, .gsh files contain both vertex and pixel shaders
+        // Use the same file for both stages - the loading system will extract the correct stage
         switch (shader)
         {
             case STANDARD_DEFAULT:

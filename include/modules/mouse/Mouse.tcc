@@ -28,5 +28,12 @@ namespace love
         virtual bool getRelativeMode() const = 0;
 
         virtual void setRelativeMode(bool relative) = 0;
+
+        // Wiimote functions - default implementations that can be overridden
+        virtual bool isWiimoteButtonDown(int /*button*/) const { return false; }
+
+        virtual bool wasWiimoteButtonPressed(int /*button*/) const { return false; }
+
+        virtual bool wasWiimoteButtonReleased(int /*button*/) const { return false; }
     };
 } // namespace love

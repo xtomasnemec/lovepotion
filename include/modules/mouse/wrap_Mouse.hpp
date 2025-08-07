@@ -21,5 +21,11 @@ namespace Wrap_Mouse
 
     int setRelativeMode(lua_State* L);
 
+    int isWiimoteButtonDown(lua_State* L);
+
+    int wasWiimoteButtonPressed(lua_State* L);
+
+    int wasWiimoteButtonReleased(lua_State* L);
+
     int open(lua_State* L);
 } // namespace Wrap_Mouse

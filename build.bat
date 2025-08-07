@@ -11,6 +11,7 @@ echo Starting Docker...
 docker desktop start
 
 REM Build Docker image
+rmdir /s /q build
 echo Building Docker image...
 docker build --build-arg BUILD_TYPE=%BUILD_TYPE% -f Dockerfile.wiiu -t lovepotion-wiiu .
 

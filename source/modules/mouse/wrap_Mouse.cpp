@@ -70,16 +70,43 @@ int Wrap_Mouse::setRelativeMode(lua_State* L)
     return 0;
 }
 
+int Wrap_Mouse::isWiimoteButtonDown(lua_State* L)
+{
+    int button = luaL_checkinteger(L, 1);
+    lua_pushboolean(L, instance()->isWiimoteButtonDown(button));
+
+    return 1;
+}
+
+int Wrap_Mouse::wasWiimoteButtonPressed(lua_State* L)
+{
+    int button = luaL_checkinteger(L, 1);
+    lua_pushboolean(L, instance()->wasWiimoteButtonPressed(button));
+
+    return 1;
+}
+
+int Wrap_Mouse::wasWiimoteButtonReleased(lua_State* L)
+{
+    int button = luaL_checkinteger(L, 1);
+    lua_pushboolean(L, instance()->wasWiimoteButtonReleased(button));
+
+    return 1;
+}
+
 static constexpr luaL_Reg functions[] =
 {
-    { "getPosition",     Wrap_Mouse::getPosition     },
-    { "setPosition",     Wrap_Mouse::setPosition     },
-    { "isVisible",       Wrap_Mouse::isVisible       },
-    { "setVisible",      Wrap_Mouse::setVisible      },
-    { "isGrabbed",       Wrap_Mouse::isGrabbed       },
-    { "setGrabbed",      Wrap_Mouse::setGrabbed      },
-    { "getRelativeMode", Wrap_Mouse::getRelativeMode },
-    { "setRelativeMode", Wrap_Mouse::setRelativeMode }
+    { "getPosition",              Wrap_Mouse::getPosition              },
+    { "setPosition",              Wrap_Mouse::setPosition              },
+    { "isVisible",                Wrap_Mouse::isVisible                },
+    { "setVisible",               Wrap_Mouse::setVisible               },
+    { "isGrabbed",                Wrap_Mouse::isGrabbed                },
+    { "setGrabbed",               Wrap_Mouse::setGrabbed               },
+    { "getRelativeMode",          Wrap_Mouse::getRelativeMode          },
+    { "setRelativeMode",          Wrap_Mouse::setRelativeMode          },
+    { "isWiimoteButtonDown",      Wrap_Mouse::isWiimoteButtonDown      },
+    { "wasWiimoteButtonPressed",  Wrap_Mouse::wasWiimoteButtonPressed  },
+    { "wasWiimoteButtonReleased", Wrap_Mouse::wasWiimoteButtonReleased }
 };
 
 int Wrap_Mouse::open(lua_State* L)

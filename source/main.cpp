@@ -7,6 +7,9 @@
 #ifdef __WIIU__
 #include "DebugLogger.hpp"
 #include "driver/EventQueue.hpp"
+#include "common/LoadingScreen.hpp"
+#include <coreinit/time.h>
+#include <coreinit/thread.h>
 #ifdef USE_PPC_DEBUGGER
 #include "common/PPCDebugger.hpp"
 #endif
@@ -96,22 +99,30 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     sprintf(buffer, "runLove() called with argc=%d", argc);
     simpleLog(buffer);
     
+    // Initialize loading screen first
+    simpleLog("Initializing loading screen...");
+    initLoadingScreen();
+    updateLoadingScreen(0.1f, "Starting LOVE Potion...");
+    
     simpleLog("Creating Lua state...");
 #endif
 
     lua_State* L = luaL_newstate();
 #ifdef __WIIU__
+    updateLoadingScreen(0.2f, "Lua state created, opening libraries...");
     simpleLog("Lua state created, opening libs...");
 #endif
     luaL_openlibs(L);
     luaopen_bit(L);
 
 #ifdef __WIIU__
+    updateLoadingScreen(0.3f, "Libraries loaded, preloading LOVE...");
     simpleLog("Libs opened, preloading love...");
 #endif
     love::luax_preload(L, love_initialize, "love");
 
 #ifdef __WIIU__
+    updateLoadingScreen(0.4f, "LOVE preloaded, setting up arguments...");
     simpleLog("Love preloaded, setting up args table...");
 #endif
 
@@ -131,6 +142,11 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
         // this should allow "game" to be used in love.filesystem.setSource
         std::vector<const char*> args(argv, argv + argc);
 
+        /* Skip filesystem checks on Wii U to avoid hanging */
+#ifdef __WIIU__
+        simpleLog("Wii U detected - skipping filesystem checks, assuming fused game");
+        // For Wii U, we always use fused mode since the game is embedded in the binary
+#else
         /* if the game directory or game.love exists, add the arg */
         std::filesystem::path filepath = love::getApplicationPath(argv[0]);
         std::filesystem::path gameDir = filepath.parent_path().append("game");
@@ -138,23 +154,15 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
         
         if (std::filesystem::exists(gameDir))
         {
-#ifdef __WIIU__
-            simpleLog("Found game directory, adding 'game' argument");
-#endif
             args.push_back("game");
         }
         else if (std::filesystem::exists(gameLove))
         {
-#ifdef __WIIU__
-            simpleLog("Found game.love file, adding 'game.love' argument");
-#endif
             args.push_back("game.love");
         }
-#ifdef __WIIU__
         else
         {
-            simpleLog("No game directory or game.love found, assuming fused game");
-            args.push_back("--fused");
+            // No external game found, assume fused
         }
 #endif
 
@@ -171,6 +179,7 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     }
 
 #ifdef __WIIU__
+    updateLoadingScreen(0.5f, "Arguments configured, requiring LOVE module...");
     simpleLog("Args table set, requiring love module...");
 #endif
 
@@ -179,6 +188,7 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     lua_call(L, 1, 1); // leave the returned table on the stack.
 
 #ifdef __WIIU__
+    updateLoadingScreen(0.6f, "LOVE module loaded, setting up execution...");
     simpleLog("Love module required, setting _exe flag...");
 #endif
 
@@ -194,6 +204,7 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     lua_pop(L, 1);
 
 #ifdef __WIIU__
+    updateLoadingScreen(0.7f, "Setting up boot loader...");
     simpleLog("Setting up love.boot...");
 #endif
 
@@ -202,6 +213,7 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     lua_call(L, 1, 1);
 
 #ifdef __WIIU__
+    updateLoadingScreen(0.8f, "Boot loader ready, initializing engine...");
     simpleLog("love.boot loaded, checking what was returned...");
     
     // Debug what love.boot returned
@@ -322,6 +334,7 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     int results  = 0;
 
 #ifdef __WIIU__
+    updateLoadingScreen(0.9f, "Engine initialized, starting main loop...");
     simpleLog("Starting main loop...");
     love::DebugLogger::log("About to enter main loop with position=%d", position);
     
@@ -332,6 +345,15 @@ static DoneAction runLove(char** argv, int argc, int& result, love::Variant& res
     bool mainLoopResult = false;
     
 #ifdef __WIIU__
+    // Complete loading screen before starting main loop
+    updateLoadingScreen(1.0f, "Ready! Starting game...");
+    
+    // Small delay to show completion - use thread yield instead of sleep
+    OSYieldThread();
+    
+    // Shutdown loading screen once game starts
+    shutdownLoadingScreen();
+    
     // Use simple counter instead of time() which seems broken on Wii U
     int iterationCounter = 0;
     int lastLogIteration = 0;

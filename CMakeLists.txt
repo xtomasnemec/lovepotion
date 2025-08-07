@@ -356,6 +356,7 @@ source/main.cpp
 source/common/b64.cpp
 source/common/Data.cpp
 source/common/float.cpp
+source/common/LoadingScreen.cpp
 source/common/luax.cpp
 source/common/Matrix.cpp
 source/common/Message.cpp
@@ -421,6 +422,7 @@ source/modules/graphics/wrap_Texture.cpp
 source/modules/graphics/wrap_TextBatch.cpp
 source/modules/graphics/wrap_Font.cpp
 source/modules/graphics/wrap_Quad.cpp
+source/modules/graphics/wrap_Shader.cpp
 source/modules/graphics/Texture.cpp
 source/modules/image/CompressedImageData.cpp
 source/modules/image/CompressedSlice.cpp
