@@ -1,48 +1,30 @@
 #pragma once
 
-#include <common/console.hpp>
-
-namespace love
-{
-    enum DoneAction
-    {
-        DONE_QUIT,
-        DONE_RESTART
-    };
-
-    template<Console::Platform T = Console::ALL>
-    void PreInit();
-
-    int Initialize(lua_State* L);
-
-    template<Console::Platform T = Console::ALL>
-    void OnExit();
-
-    int LoadArgs(lua_State* L);
-
-    int LoadCallbacks(lua_State* L);
-
-    int Boot(lua_State* L);
-
-    int NoGame(lua_State* L);
-
-    int Print(lua_State* L);
-
-    int OpenConsole(lua_State* L);
-
-    template<Console::Platform T>
-    bool MainLoop(lua_State* L, int numArgs);
-
-    int GetVersion(lua_State* L);
-
-    int IsVersionCompatible(lua_State* L);
-
-    int SetGammaCorrect(lua_State* L);
-
-    static constexpr int STDIO_PORT = 8000;
-} // namespace love
+struct lua_State;
 
 extern "C"
 {
     extern int luaopen_https(lua_State*);
 }
+
+static constexpr int STDIO_PORT = 8000;
+
+const char* love_getVersion();
+
+const char* love_getCodename();
+
+int love_initialize(lua_State* L);
+
+int love_isVersionCompatible(lua_State* L);
+
+int love_openConsole(lua_State* L);
+
+int love_print(lua_State* L);
+
+int love_openNoGame(lua_State* L);
+
+int love_openArg(lua_State* L);
+
+int love_openCallbacks(lua_State* L);
+
+int love_openBoot(lua_State* L);

@@ -1,40 +1,34 @@
 #pragma once
 
-#include <common/data.hpp>
-#include <common/module.hpp>
-#include <common/strongreference.hpp>
+#include "common/Data.hpp"
+#include "common/Map.hpp"
+#include "common/Module.hpp"
 
-#include <objects/channel/channel.hpp>
-#include <objects/thread/luathread.hpp>
+#include "modules/thread/Channel.hpp"
+#include "modules/thread/LuaThread.hpp"
+#include "modules/thread/Thread.hpp"
 
 #include <map>
+#include <string>
 
 namespace love
 {
     class ThreadModule : public Module
     {
       public:
+        ThreadModule();
+
         virtual ~ThreadModule()
         {}
 
-        virtual const char* GetName() const override
-        {
-            return "love.thread";
-        }
+        LuaThread* newThread(const std::string& name, Data* data) const;
 
-        virtual ModuleType GetModuleType() const override
-        {
-            return M_THREAD;
-        }
+        Channel* newChannel() const;
 
-        LuaThread* NewThread(const std::string& name, Data* data) const;
+        Channel* getChannel(const std::string& name);
 
-        Channel* NewChannel() const;
-
-        Channel* GetChannel(const std::string& name);
-
-      protected:
-        std::map<std::string, StrongReference<Channel>> namedChannels;
-        love::mutex mutex;
+      private:
+        std::map<std::string, StrongRef<Channel>> channels;
+        std::recursive_mutex mutex;
     };
 } // namespace love

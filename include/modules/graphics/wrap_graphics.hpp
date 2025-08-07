@@ -1,212 +1,199 @@
 #pragma once
 
-#include <common/luax.hpp>
-
-#include <common/matrix.hpp>
-#include <objects/transform/transform.hpp>
+#include "common/luax.hpp"
+#include "modules/graphics/Graphics.hpp"
 
 namespace Wrap_Graphics
 {
-    template<typename T>
-    static void CheckStandardTransform(lua_State* L, int index, const T& func)
-    {
-        if (luax::IsType(L, index, love::Transform::type))
-        {
-            love::Transform* transform = luax::ToType<love::Transform>(L, index);
-            func(transform->GetMatrix());
-        }
-        else
-        {
-            float x  = luaL_optnumber(L, index + 0, 0.0);
-            float y  = luaL_optnumber(L, index + 1, 0.0);
-            float a  = luaL_optnumber(L, index + 2, 0.0);
-            float sx = luaL_optnumber(L, index + 3, 1.0);
-            float sy = luaL_optnumber(L, index + 4, sx);
-            float ox = luaL_optnumber(L, index + 5, 0.0);
-            float oy = luaL_optnumber(L, index + 6, 0.0);
-            float kx = luaL_optnumber(L, index + 7, 0.0);
-            float ky = luaL_optnumber(L, index + 8, 0.0);
-            func(love::Matrix4(x, y, a, sx, sy, ox, oy, kx, ky));
-        }
-    }
+    int reset(lua_State* L);
 
-    int Reset(lua_State* L);
+    int clear(lua_State* L);
 
-    int Clear(lua_State* L);
+    int present(lua_State* L);
 
-    int Present(lua_State* L);
+    int setColor(lua_State* L);
 
-    int IsCreated(lua_State* L);
+    int getColor(lua_State* L);
 
-    int IsActive(lua_State* L);
+    int setBackgroundColor(lua_State* L);
 
-    int Origin(lua_State* L);
+    int getBackgroundColor(lua_State* L);
 
-    int IsGammaCorrect(lua_State* L);
+    int setColorMask(lua_State* L);
 
-    int GetWidth(lua_State* L);
+    int getColorMask(lua_State* L);
 
-    int GetHeight(lua_State* L);
+    int setBlendMode(lua_State* L);
 
-    int GetDimensions(lua_State* L);
+    int getBlendMode(lua_State* L);
 
-    int GetPixelWidth(lua_State* L);
+    int setBlendState(lua_State* L);
 
-    int GetPixelHeight(lua_State* L);
+    int getBlendState(lua_State* L);
 
-    int GetPixelDimensions(lua_State* L);
+    int setLineWidth(lua_State* L);
 
-    int GetDPIScale(lua_State* L);
+    int getLineWidth(lua_State* L);
 
-    /* todo: SetCanvas */
+    int setLineJoin(lua_State* L);
 
-    /* todo: GetCanvas */
+    int getLineJoin(lua_State* L);
 
-    int SetScissor(lua_State* L);
+    int setLineStyle(lua_State* L);
 
-    int IntersectScissor(lua_State* L);
+    int getLineStyle(lua_State* L);
 
-    int GetScissor(lua_State* L);
+    int setPointSize(lua_State* L);
 
-    int SetColor(lua_State* L);
+    int getPointSize(lua_State* L);
 
-    int GetColor(lua_State* L);
+    int setMeshCullMode(lua_State* L);
 
-    int SetBackgroundColor(lua_State* L);
+    int getMeshCullMode(lua_State* L);
 
-    int GetBackgroundColor(lua_State* L);
+    int setFrontFaceWinding(lua_State* L);
 
-    int SetColorMask(lua_State* L);
+    int getFrontFaceWinding(lua_State* L);
 
-    int GetColorMask(lua_State* L);
+    int getTextureFormats(lua_State* L);
 
-    int SetBlendMode(lua_State* L);
+    int getSystemLimits(lua_State* L);
 
-    int GetBlendMode(lua_State* L);
+    int getTextureTypes(lua_State* L);
 
-    int SetBlendState(lua_State* L);
+    int getStats(lua_State* L);
 
-    int GetBlendState(lua_State* L);
+    int isCreated(lua_State* L);
 
-    int SetMeshCullMode(lua_State* L);
+    int isActive(lua_State* L);
 
-    int GetMeshCullMode(lua_State* L);
+    int isGammaCorrect(lua_State* L);
 
-    int SetFrontFaceWinding(lua_State* L);
+    int getRendererInfo(lua_State* L);
 
-    int GetFrontFaceWinding(lua_State* L);
+    int getWidth(lua_State* L);
 
-    int SetDefaultFilter(lua_State* L);
+    int getHeight(lua_State* L);
 
-    int GetDefaultFilter(lua_State* L);
+    int getDimensions(lua_State* L);
 
-    int SetDefaultMipmapFilter(lua_State* L);
+    int getPixelWidth(lua_State* L);
 
-    int GetDefaultMipmapFilter(lua_State* L);
+    int getPixelHeight(lua_State* L);
 
-    int SetLineWidth(lua_State* L);
+    int getPixelDimensions(lua_State* L);
 
-    int GetLineWidth(lua_State* L);
+    int getDPIScale(lua_State* L);
 
-    int SetLineStyle(lua_State* L);
+    int setScissor(lua_State* L);
 
-    int GetLineStyle(lua_State* L);
+    int intersectScissor(lua_State* L);
 
-    int SetLineJoin(lua_State* L);
+    int getScissor(lua_State* L);
 
-    int GetLineJoin(lua_State* L);
+    int getStackDepth(lua_State* L);
 
-    int SetPointSize(lua_State* L);
+    int push(lua_State* L);
 
-    int GetPointSize(lua_State* L);
+    int pop(lua_State* L);
 
-    int SetActiveScreen(lua_State* L);
+    int rotate(lua_State* L);
 
-    int GetScreens(lua_State* L);
+    int scale(lua_State* L);
 
-    /* NINTENDO 3DS */
+    int translate(lua_State* L);
 
-    int Get3D(lua_State* L);
+    int shear(lua_State* L);
 
-    int Set3D(lua_State* L);
+    int origin(lua_State* L);
 
-    int GetDepth(lua_State* L);
+    int applyTransform(lua_State* L);
 
-    /* OBJECTS */
+    int replaceTransform(lua_State* L);
 
-    int NewFont(lua_State* L);
+    int transformPoint(lua_State* L);
 
-    int SetFont(lua_State* L);
+    int inverseTransformPoint(lua_State* L);
 
-    int GetFont(lua_State* L);
+    int newTexture(lua_State* L);
 
-    int Draw(lua_State* L);
+    int newQuad(lua_State* L);
 
-    int NewTexture(lua_State* L);
+    int newImage(lua_State* L);
 
-    int NewImage(lua_State* L);
+    int newVideo(lua_State* L);
 
-    int NewCanvas(lua_State* L);
+    int newArrayTexture(lua_State* L);
 
-    int SetCanvas(lua_State* L);
+    int newCanvas(lua_State* L);
 
-    int GetCanvas(lua_State* L);
+    int setCanvas(lua_State* L);
 
-    int NewQuad(lua_State* L);
+    int getCanvas(lua_State* L);
 
-    int NewTextBatch(lua_State* L);
+    int setFont(lua_State* L);
 
-    int NewSpriteBatch(lua_State* L);
+    int getFont(lua_State* L);
 
-    int NewMesh(lua_State* L);
+    int setNewFont(lua_State* L);
 
-    int Print(lua_State* L);
+    int polygon(lua_State* L);
 
-    int Printf(lua_State* L);
+    int rectangle(lua_State* L);
 
-    /* PRIMITIVES */
+    int circle(lua_State* L);
 
-    int Rectangle(lua_State* L);
+    int ellipse(lua_State* L);
 
-    int Circle(lua_State* L);
+    int arc(lua_State* L);
 
-    int Line(lua_State* L);
+    int points(lua_State* L);
 
-    int Arc(lua_State* L);
+    int line(lua_State* L);
 
-    int Points(lua_State* L);
+    int draw(lua_State* L);
 
-    int Ellipse(lua_State* L);
+    // int newMesh(lua_State* L);
 
-    int Polygon(lua_State* L);
+    int newTextBatch(lua_State* L);
 
-    /* OTHER STUFF */
+    int newText(lua_State* L);  // Wrapper for newTextBatch to provide compatibility
+    
+    int newSpriteBatch(lua_State* L);
+    
+    int newFont(lua_State* L);
 
-    int GetRendererInfo(lua_State* L);
+    int print(lua_State* L);
 
-    int GetStats(lua_State* L);
+    int printf(lua_State* L);
 
-    int Push(lua_State* L);
+    int getDefaultFilter(lua_State* L);
 
-    int Translate(lua_State* L);
+    int setDefaultFilter(lua_State* L);
 
-    int Scale(lua_State* L);
+    int setShader(lua_State* L);
+    
+    int getShader(lua_State* L);
 
-    int Shear(lua_State* L);
+    int newShader(lua_State* L);
 
-    int Rotate(lua_State* L);
+    int getScreens(lua_State* L);
 
-    int ApplyTransform(lua_State* L);
+    int getActiveScreen(lua_State* L);
 
-    int InverseTransformPoint(lua_State* L);
+    int setActiveScreen(lua_State* L);
 
-    int TransformPoint(lua_State* L);
+    int is3D(lua_State* L);
 
-    int ReplaceTransform(lua_State* L);
+    int set3D(lua_State* L);
 
-    int Pop(lua_State* L);
+    int isWide(lua_State* L);
 
-    int Register(lua_State* L);
+    int setWide(lua_State* L);
 
-    extern std::span<const luaL_Reg> extensions;
+    int getDepth(lua_State* L);
+
+    int copyCurrentScanBuffer(lua_State* L);
+
+    int open(lua_State* L);
 } // namespace Wrap_Graphics

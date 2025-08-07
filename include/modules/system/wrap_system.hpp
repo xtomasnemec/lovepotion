@@ -1,34 +1,39 @@
 #pragma once
 
-#include <common/luax.hpp>
+#include "common/luax.hpp"
+#include "modules/system/System.hpp"
 
 namespace Wrap_System
 {
-    int GetOS(lua_State* L);
+    int getProcessorCount(lua_State* L);
 
-    int GetProcessorCount(lua_State* L);
+    int getPowerInfo(lua_State* L);
 
-    int GetPowerInfo(lua_State* L);
+    int getClipboardText(lua_State* L);
 
-    int GetNetworkInfo(lua_State* L);
+    int setClipboardText(lua_State* L);
 
-    int GetPreferredLocales(lua_State* L);
+    int vibrate(lua_State* L);
 
-    int GetModel(lua_State* L);
+    int openURL(lua_State* L);
 
-    int GetUsername(lua_State* L);
+    int hasBackgroundMusic(lua_State* L);
 
-    int GetVersion(lua_State* L);
+    int getPreferredLocales(lua_State* L);
 
-    int GetFriendInfo(lua_State* L);
+    int getNetworkInfo(lua_State* L);
 
-    int GetSystemTheme(lua_State* L);
+    int getProductInfo(lua_State* L);
 
-    int GetPlayCoins(lua_State* L);
+    int getOS(lua_State* L);
 
-    int SetPlayCoins(lua_State* L);
+    int getFriendInfo(lua_State* L);
 
-    int Register(lua_State* L);
+    int getPlayCoins(lua_State* L);
 
-    extern std::span<const luaL_Reg> extensions;
+    int setPlayCoins(lua_State* L);
+
+    int getTheme(lua_State* L);
+
+    int open(lua_State* L);
 } // namespace Wrap_System

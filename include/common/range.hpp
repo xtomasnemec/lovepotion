@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -20,75 +20,86 @@
 
 #pragma once
 
-#include <stddef.h>
 #include <algorithm>
 #include <limits>
+#include <stddef.h>
 
 namespace love
 {
 
-struct Range
-{
-	size_t first;
-	size_t last;
+    struct Range
+    {
+        size_t first;
+        size_t last;
 
-	Range()
-		: first(std::numeric_limits<size_t>::max())
-		, last(0)
-	{}
+        Range() : first(std::numeric_limits<size_t>::max()), last(0)
+        {}
 
-	Range(size_t offset, size_t size)
-		: first(offset)
-		, last(offset + size - 1)
-	{}
+        Range(size_t offset, size_t size) : first(offset), last(offset + size - 1)
+        {}
 
-	bool isValid() const { return first <= last; }
+        bool isValid() const
+        {
+            return first <= last;
+        }
 
-	void invalidate()
-	{
-		first = std::numeric_limits<size_t>::max();
-		last = 0;
-	}
+        void invalidate()
+        {
+            first = std::numeric_limits<size_t>::max();
+            last  = 0;
+        }
 
-	size_t getMin() const { return first; }
-	size_t getMax() const { return last; }
+        size_t getMin() const
+        {
+            return first;
+        }
+        size_t getMax() const
+        {
+            return last;
+        }
 
-	size_t getOffset() const { return first; }
-	size_t getSize() const { return (last - first) + 1; }
+        size_t getOffset() const
+        {
+            return first;
+        }
+        size_t getSize() const
+        {
+            return (last - first) + 1;
+        }
 
-	bool contains(const Range &other) const
-	{
-		return first <= other.first && last >= other.last;
-	}
+        bool contains(const Range& other) const
+        {
+            return first <= other.first && last >= other.last;
+        }
 
-	bool intersects(const Range &other)
-	{
-		return !(first > other.last || last < other.first);
-	}
+        bool intersects(const Range& other) const
+        {
+            return !(first > other.last || last < other.first);
+        }
 
-	void intersect(const Range &other)
-	{
-		first = std::max(first, other.first);
-		last = std::min(last, other.last);
-	}
+        void intersect(const Range& other)
+        {
+            first = std::max(first, other.first);
+            last  = std::min(last, other.last);
+        }
 
-	void encapsulate(size_t index)
-	{
-		first = std::min(first, index);
-		last = std::max(last, index);
-	}
+        void encapsulate(size_t index)
+        {
+            first = std::min(first, index);
+            last  = std::max(last, index);
+        }
 
-	void encapsulate(size_t offset, size_t size)
-	{
-		first = std::min(first, offset);
-		last = std::max(last, offset + size - 1);
-	}
+        void encapsulate(size_t offset, size_t size)
+        {
+            first = std::min(first, offset);
+            last  = std::max(last, offset + size - 1);
+        }
 
-	void encapsulate(const Range &other)
-	{
-		first = std::min(first, other.first);
-		last = std::max(last, other.last);
-	}
-};
+        void encapsulate(const Range& other)
+        {
+            first = std::min(first, other.first);
+            last  = std::max(last, other.last);
+        }
+    };
 
-} // love
+} // namespace love

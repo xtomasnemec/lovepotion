@@ -3,7 +3,7 @@ R"luastring"--(
 -- There is a matching delimiter at the bottom of the file.
 
 --[[
-Copyright (c) 2006-2022 LOVE Development Team
+Copyright (c) 2006-2024 LOVE Development Team
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -30,9 +30,9 @@ require("love.arg")
 require("love.callbacks")
 
 local function uridecode(s)
-    return s:gsub("%%%x%x", function(str)
-        return string.char(tonumber(str:sub(2), 16))
-    end)
+	return s:gsub("%%%x%x", function(str)
+		return string.char(tonumber(str:sub(2), 16))
+	end)
 end
 
 local no_game_code = false
@@ -41,384 +41,450 @@ local main_file = "main.lua"
 
 -- This can't be overridden.
 function love.boot()
-    -- This is absolutely needed.
-    require("love.filesystem")
 
-    love.rawGameArguments = arg
+	-- This is absolutely needed.
+	require("love.filesystem")
 
-    local arg0 = love.arg.getLow(love.rawGameArguments)
-    love.filesystem.init(arg0)
+	love.rawGameArguments = arg
 
-    local exepath = love.filesystem.getExecutablePath()
-    if #exepath == 0 then
-        -- This shouldn't happen, but just in case we'll fall back to arg0.
-        exepath = arg0
-    end
+	local arg0 = love.arg.getLow(love.rawGameArguments)
+	love.filesystem.init(arg0)
 
-    no_game_code = false
-    invalid_game_path = nil
+	local exepath = love.filesystem.getExecutablePath()
+	if #exepath == 0 then
+		-- This shouldn't happen, but just in case we'll fall back to arg0.
+		exepath = arg0
+	end
 
-    -- Is this one of those fancy "fused" games?
-    local can_has_game = pcall(love.filesystem.setSource, exepath)
+	no_game_code = false
+	invalid_game_path = nil
 
-    -- It's a fused game, don't parse --game argument
-    if can_has_game then
-        love.arg.options.game.set = true
-    end
+	-- Is this one of those fancy "fused" games?
+	local can_has_game = pcall(love.filesystem.setSource, exepath)
 
-    -- Parse options now that we know which options we're looking for.
-    love.arg.parseOptions(love.rawGameArguments)
+	-- It's a fused game, don't parse --game argument
+	if can_has_game then
+		love.arg.options.game.set = true
+	end
 
-    -- parseGameArguments can only be called after parseOptions.
-    love.parsedGameArguments = love.arg.parseGameArguments(love.rawGameArguments)
+	-- Parse options now that we know which options we're looking for.
+	love.arg.parseOptions(love.rawGameArguments)
 
-    local o = love.arg.options
+	-- parseGameArguments can only be called after parseOptions.
+	love.parsedGameArguments = love.arg.parseGameArguments(love.rawGameArguments)
 
-    local is_fused_game = can_has_game or love.arg.options.fused.set
+	local o = love.arg.options
 
-    love.filesystem.setFused(is_fused_game)
+	local is_fused_game = can_has_game or love.arg.options.fused.set
 
-    -- love.setDeprecationOutput(not love.filesystem.isFused())
+	love.filesystem.setFused(is_fused_game)
 
-    main_file = "main.lua"
-    local custom_main_file = false
+	-- love.setDeprecationOutput(not love.filesystem.isFused())
 
-    local identity = ""
-    if not can_has_game and o.game.set and o.game.arg[1] then
-        local nouri = o.game.arg[1]
+	main_file = "main.lua"
+	local custom_main_file = false
 
-        if nouri:sub(1, 7) == "file://" then
-            nouri = uridecode(nouri:sub(8))
-        end
+	local identity = ""
+	if not can_has_game and o.game.set and o.game.arg[1] then
+		local nouri = o.game.arg[1]
+		local full_source = nouri
 
-        local full_source = love.path.getFull(nouri)
-        local source_leaf = love.path.leaf(full_source)
+		-- Ignore "content://" uri as it's used to open a file-descriptor
+		-- directly for Android.
+		if nouri:sub(1, 10) ~= "content://" then
+			if nouri:sub(1, 7) == "file://" then
+				nouri = uridecode(nouri:sub(8))
+			end
 
-        if source_leaf:match("%.lua$") then
-            main_file = source_leaf
-            custom_main_file = true
-            full_source = love.path.getFull(full_source:sub(1, -(#source_leaf + 1)))
-        elseif nouri:match("%.love$") then
-            full_source = nouri
-        end
+			full_source = love.path.getFull(nouri)
+			local source_leaf = love.path.leaf(full_source)
 
-        can_has_game = pcall(love.filesystem.setSource, full_source)
+			if source_leaf:match("%.lua$") then
+				main_file = source_leaf
+				custom_main_file = true
+				full_source = love.path.getFull(full_source:sub(1, -(#source_leaf + 1)))
+			end
+		end
 
-        if not can_has_game then
-            invalid_game_path = full_source
-        end
+		can_has_game = pcall(love.filesystem.setSource, full_source)
 
-        -- Use the name of the source .love as the identity for now.
-        identity = love.path.leaf(full_source)
-    else
-        -- Use the name of the exe as the identity for now.
-        identity = love.path.leaf(exepath)
-    end
+		if not can_has_game then
+			invalid_game_path = full_source
+		end
 
-    -- Try to use the archive containing main.lua as the identity name. It
-    -- might not be available, in which case the fallbacks above are used.
-    local realdir = love.filesystem.getRealDirectory(main_file)
-    if realdir then
-        identity = love.path.leaf(realdir)
-    end
+		-- Use the name of the source .love as the identity for now.
+		identity = love.path.leaf(full_source)
+	else
+		-- Use the name of the exe as the identity for now.
+		identity = love.path.leaf(exepath)
+	end
 
-    identity = identity:gsub("^([%.]+)", "")    -- strip leading "."'s
-    identity = identity:gsub("%.([^%.]+)$", "") -- strip extension
-    identity = identity:gsub("%.", "_")         -- replace remaining "."'s with "_"
-    identity = #identity > 0 and identity or "lovegame"
+	-- Try to use the archive containing main.lua as the identity name. It
+	-- might not be available, in which case the fallbacks above are used.
+	local realdir = love.filesystem.getRealDirectory(main_file)
+	if realdir then
+		identity = love.path.leaf(realdir)
+	end
 
-    -- When conf.lua is initially loaded, the main source should be checked
-    -- before the save directory (the identity should be appended.)
-    pcall(love.filesystem.setIdentity, identity, true)
+	identity = identity:gsub("^([%.]+)", "") -- strip leading "."'s
+	identity = identity:gsub("%.([^%.]+)$", "") -- strip extension
+	identity = identity:gsub("%.", "_") -- replace remaining "."'s with "_"
+	identity = #identity > 0 and identity or "lovegame"
 
-    if can_has_game and not (love.filesystem.getInfo(main_file) or (not custom_main_file and love.filesystem.getInfo("conf.lua"))) then
-        no_game_code = true
-    end
+	-- When conf.lua is initially loaded, the main source should be checked
+	-- before the save directory (the identity should be appended.)
+	pcall(love.filesystem.setIdentity, identity, true)
 
-    if not can_has_game then
-        local nogame = require("love.nogame")
-        nogame()
-    end
+	if can_has_game and not (love.filesystem.getInfo(main_file) or (not custom_main_file and love.filesystem.getInfo("conf.lua"))) then
+		no_game_code = true
+	end
+
+	if not can_has_game then
+		-- when editing this message, change it at love.cpp too
+		print([[LOVE is an *awesome* framework you can use to make 2D games in Lua
+https://love2d.org
+
+usage:
+    love --version                  prints LOVE version and quits
+    love --help                     prints this message and quits
+    love path/to/gamedir            runs the game from the given directory which contains a main.lua file
+    love path/to/packagedgame.love  runs the packaged game from the provided .love file
+    love path/to/file.lua           runs the game from the given .lua file
+]]);
+		local nogame = require("love.nogame")
+		nogame()
+	end
 end
 
 function love.init()
-    -- Create default configuration settings.
-    -- NOTE: Adding a new module to the modules list
-    -- will NOT make it load, see below.
-    local c = {
-        title = "Untitled",
-        version = love._version,
-        window = {
-            width = 800,
-            height = 600,
-            x = nil,
-            y = nil,
-            minwidth = 1,
-            minheight = 1,
-            fullscreen = false,
-            fullscreentype = "desktop",
-            displayindex = 1,
-            vsync = 1,
-            msaa = 0,
-            borderless = false,
-            resizable = false,
-            centered = true,
-            usedpiscale = true,
-        },
-        modules = {
-            data = true,
-            event = true,
-            keyboard = true,
-            mouse = false,
-            timer = true,
-            joystick = true,
-            touch = true,
-            image = true,
-            graphics = true,
-            audio = true,
-            math = true,
-            physics = true,
-            sensor = true,
-            sound = true,
-            system = true,
-            font = true,
-            thread = true,
-            window = true,
-            video = false,
-        },
-        audio = {
-            mixwithsystem = true, -- Only relevant for Android / iOS.
-            mic = false,          -- Only relevant for Android.
-        },
-        console = false,          -- Only relevant for windows.
-        identity = false,
-        appendidentity = false,
-        externalstorage = false,      -- Only relevant for Android.
-        accelerometerjoystick = true, -- Only relevant for Android / iOS.
-        gammacorrect = false,
-        highdpi = false,
-        renderers = nil,
-        excluderenderers = nil,
-    }
 
-    local openedconsole = false
-    if love.arg.options.console.set and love._openConsole then
-        love._openConsole()
-        openedconsole = true
-    end
+	-- Create default configuration settings.
+	-- NOTE: Adding a new module to the modules list
+	-- will NOT make it load, see below.
+	local c = {
+		title = "Untitled",
+		version = love._version,
+		window = {
+			width = 800,
+			height = 600,
+			x = nil,
+			y = nil,
+			minwidth = 1,
+			minheight = 1,
+			fullscreen = false,
+			fullscreentype = "desktop",
+			displayindex = 1,
+			vsync = 1,
+			msaa = 0,
+			borderless = false,
+			resizable = false,
+			centered = true,
+			usedpiscale = true,
+		},
+		graphics = {
+			gammacorrect = false,
+			lowpower = false,
+			renderers = nil,
+			excluderenderers = nil,
+		},
+		modules = {
+			data = true,
+			event = true,
+			keyboard = true,
+			mouse = false,  -- Wii U doesn't have mouse
+			timer = true,
+			joystick = true,
+			touch = true,
+			image = true,
+			graphics = true,
+			audio = true,
+			math = true,
+			physics = false,
+			sensor = true,
+			sound = true,
+			system = true,
+			font = true,
+			thread = true,   -- Re-enabled for Wii U
+			window = true,
+			video = false,
+		},
+		audio = {
+			mixwithsystem = true,
+			mic = false,
+		},
+		console = false,
+		identity = false,
+		appendidentity = false,
+		externalstorage = false,
+		gammacorrect = nil, -- Moved to t.graphics.
+		highdpi = false,
+		renderers = nil, -- Moved to t.graphics.
+		excluderenderers = nil, -- Moved to t.graphics.
+		trackpadtouch = false,
+	}
 
-    -- If config file exists, load it and allow it to update config table.
-    local confok, conferr
-    if (not love.conf) and love.filesystem and love.filesystem.getInfo("conf.lua") then
-        confok, conferr = pcall(require, "conf")
-    end
+	-- Console hack, part 1.
+	local openedconsole = false
+	if love.arg.options.console.set and love._openConsole then
+		love._openConsole()
+		openedconsole = true
+	end
 
-    -- Yes, conf.lua might not exist, but there are other ways of making
-    -- love.conf appear, so we should check for it anyway.
-    if love.conf then
-        confok, conferr = pcall(love.conf, c)
-        -- If love.conf errors, we'll trigger the error after loading modules so
-        -- the error message can be displayed in the window.
-    end
+	-- If config file exists, load it and allow it to update config table.
+	local confok, conferr
+	if (not love.conf) and love.filesystem and love.filesystem.getInfo("conf.lua") then
+		confok, conferr = pcall(require, "conf")
+	end
 
-    -- Open the console
-    local console_ok, console_error
-    if c.console and love._openConsole and not openedconsole then
-        love._openConsole(c.console)
-    end
+	-- Yes, conf.lua might not exist, but there are other ways of making
+	-- love.conf appear, so we should check for it anyway.
+	if love.conf then
+		confok, conferr = pcall(love.conf, c)
+		-- If love.conf errors, we'll trigger the error after loading modules so
+		-- the error message can be displayed in the window.
+	end
 
-    -- Hack for disabling accelerometer-as-joystick on Android / iOS.
-    if love._setAccelerometerAsJoystick then
-        love._setAccelerometerAsJoystick(c.accelerometerjoystick)
-    end
+	-- Console hack, part 2.
+	if c.console and love._openConsole and not openedconsole then
+		love._openConsole()
+	end
 
-    if love._setGammaCorrect then
-        love._setGammaCorrect(c.gammacorrect)
-    end
+	if love._setGammaCorrect then
+		local gammacorrect = false
+		if type(c.graphics) == "table" then
+			gammacorrect = c.graphics.gammacorrect
+		end
+		if c.gammacorrect ~= nil then
+			-- love.markDeprecated(2, "t.gammacorrect in love.conf", "field", "replaced", "t.graphics.gammacorrect")
+			gammacorrect = c.gammacorrect
+		end
+		love._setGammaCorrect(gammacorrect)
+	end
 
-    if love._setRenderers then
-        local renderers = love._getDefaultRenderers()
-        if type(c.renderers) == "table" then
-            renderers = {}
-            for i, v in ipairs(c.renderers) do
-                renderers[i] = v
-            end
-        end
+	if love._setLowPowerPreferred and type(c.graphics) == "table" then
+		love._setLowPowerPreferred(c.graphics.lowpower)
+	end
 
-        if love.arg.options.renderers.set then
-            local renderersstr = love.arg.options.renderers.arg[1]
-            renderers = {}
-            for r in renderersstr:gmatch("[^,]+") do
-                table.insert(renderers, r)
-            end
-        end
-        local excluderenderers = c.excluderenderers
-        if love.arg.options.excluderenderers.set then
-            local excludestr = love.arg.options.excluderenderers.arg[1]
-            excluderenderers = {}
-            for r in excludestr:gmatch("[^,]+") do
-                table.insert(excluderenderers, r)
-            end
-        end
+	if love._setRenderers then
+		local renderers = love._getDefaultRenderers()
+		if type(c.renderers) == "table" then
+			-- love.markDeprecated(2, "t.renderers in love.conf", "field", "replaced", "t.graphics.renderers")
+			renderers = c.renderers
+		end
+		if type(c.graphics) == "table" and type(c.graphics.renderers) == "table" then
+			renderers = c.graphics.renderers
+		end
+		if love.arg.options.renderers.set then
+			local renderersstr = love.arg.options.renderers.arg[1]
+			renderers = {}
+			for r in renderersstr:gmatch("[^,]+") do
+				table.insert(renderers, r)
+			end
+		end
 
-        if type(excluderenderers) == "table" then
-            for i, v in ipairs(excluderenderers) do
-                for j = #renderers, 1, -1 do
-                    if renderers[j] == v then
-                        table.remove(renderers, j)
-                        break
-                    end
-                end
-            end
-        end
+		local excluderenderers = nil
+		if type(c.excluderenderers) == "table" then
+			-- love.markDeprecated(2, "t.excluderenderers in love.conf", "field", "replaced", "t.graphics.excluderenderers")
+			excluderenderers = c.excluderenderers
+		end
+		if type(c.graphics) == "table" and type(c.graphics.excluderenderers) == "table" then
+			excluderenderers = c.graphics.excluderenderers
+		end
+		if love.arg.options.excluderenderers.set then
+			local excludestr = love.arg.options.excluderenderers.arg[1]
+			excluderenderers = {}
+			for r in excludestr:gmatch("[^,]+") do
+				table.insert(excluderenderers, r)
+			end
+		end
 
-        love._setRenderers(renderers)
-    end
+		if type(excluderenderers) == "table" then
+			for i,v in ipairs(excluderenderers) do
+				for j=#renderers, 1, -1 do
+					if renderers and renderers[j] == v then
+						table.remove(renderers, j)
+						break
+					end
+				end
+			end
+		end
 
-    if love._setHighDPIAllowed then
-        love._setHighDPIAllowed(c.highdpi)
-    end
+		love._setRenderers(renderers)
+	end
 
-    if love._setAudioMixWithSystem then
-        if c.audio and c.audio.mixwithsystem ~= nil then
-            love._setAudioMixWithSystem(c.audio.mixwithsystem)
-        end
-    end
+	if love._setHighDPIAllowed then
+		love._setHighDPIAllowed(c.highdpi)
+	end
 
-    if love._requestRecordingPermission then
-        love._requestRecordingPermission(c.audio and c.audio.mic)
-    end
+	if love._setTrackpadTouch then
+		love._setTrackpadTouch(c.trackpadtouch)
+	end
 
-    -- for 3DS
-    local dsp_error = false
+	if love._setAudioMixWithSystem then
+		if c.audio and c.audio.mixwithsystem ~= nil then
+			love._setAudioMixWithSystem(c.audio.mixwithsystem)
+		end
+	end
 
-    -- Gets desired modules.
-    for k, v in ipairs {
-        "data",
-        "thread",
-        "timer",
-        "event",
-        "keyboard",
-        "joystick",
-        "mouse",
-        "touch",
-        "sound",
-        "system",
-        "sensor",
-        "audio",
-        "image",
-        "video",
-        "font",
-        "window",
-        "graphics",
-        "math",
-        "physics",
-    } do
-        if c.modules[v] then
-            local success, error_msg = pcall(require, "love." .. v)
-            if v == "audio" and not success then
-                dsp_error = error_msg
-            end
-        end
-    end
+	if love._requestRecordingPermission then
+		love._requestRecordingPermission(c.audio and c.audio.mic)
+	end
 
-    if love.event then
-        love.createhandlers()
-    end
+	-- Gets desired modules.
+	for k,v in ipairs{
+		"data",
+		"thread",
+		"timer",
+		"event",
+		"keyboard",
+		"joystick",
+		"mouse",
+		"touch",
+		"sound",
+		"system",
+		"sensor",
+		"audio",
+		"image",
+		"video",
+		"font",
+		"window",
+		"graphics",
+		"math",
+		"physics",
+	} do
+		if c.modules[v] then
+			local success, msg = pcall(require, "love." .. v)
+			if v == "audio" and not success then
+				error(msg)
+			end
+		end
+	end
 
-    -- Check the version
-    -- c.potionversion = tostring(c.potionversion)
-    -- if not love.isVersionCompatible(c.potionversion) then
-    --     local major, minor, revision = c.potionversion:match("^(%d+)%.(%d+)%.(%d+)$")
-    --     if (not major or not minor or not revision) or (major ~= love._potion_version_major and minor ~= love._potion_version_minor) then
-    --         local msg = ("This game indicates it was made for version '%s' of LOVE.\n" ..
-    --             "It may not be compatible with the running version (%s)."):format(c.potionversion, love._potion_version)
+	if love.event then
+		love.createhandlers()
+	end
 
-    --         print(msg)
+	-- Check the version
+	c.version = tostring(c.version)
+	-- Skip version compatibility check for LÖVE Potion
+	-- if not love.isVersionCompatible(c.version) then
+	--     local major, minor, revision = c.version:match("^(%d+)%.(%d+)%.(%d+)$")
+	--     if (not major or not minor or not revision) or (major ~= love._version_major and minor ~= love._version_minor) then
+	--         local msg = ("This game indicates it was made for version '%s' of LOVE.\n"..
+	--             "It may not be compatible with the running version (%s)."):format(c.version, love._version)
 
-    --         if love.window then
-    --             love.window.showMessageBox("Compatibility Warning", msg, "warning")
-    --         end
-    --     end
-    -- end
+	--         print(msg)
 
-    if dsp_error then
-        error(dsp_error)
-    end
+	--         if love.window then
+	--             love.window.showMessageBox("Compatibility Warning", msg, "warning")
+	--         end
+	--     end
+	-- end
 
-    if not confok and conferr then
-        error(conferr)
-    end
+	if not confok and conferr then
+		error(conferr)
+	end
 
-    if not console_ok and console_error then
-        error(console_error)
-    end
+	-- Setup window here - Skip on Wii U (cafe)
+	if c.window and c.modules.window and love.system.getOS() ~= 'cafe' then
+		if c.window.icon then
+			assert(love.image, "If an icon is set in love.conf, love.image must be loaded.")
+			love.window.setIcon(love.image.newImageData(c.window.icon))
+		end
 
-    -- Setup window here.
-    if c.window and c.modules.window and love.window then
-        love.window.setTitle(c.window.title or c.title)
-        assert(love.window.setMode(c.window.width, c.window.height,
-            {
-                fullscreen = c.window.fullscreen,
-                fullscreentype = c.window.fullscreentype,
-                vsync = c.window.vsync,
-                msaa = c.window.msaa,
-                stencil = c.window.stencil,
-                depth = c.window.depth,
-                resizable = c.window.resizable,
-                minwidth = c.window.minwidth,
-                minheight = c.window.minheight,
-                borderless = c.window.borderless,
-                centered = c.window.centered,
-                display = c.window.display,
-                highdpi = c.window.highdpi, -- deprecated
-                usedpiscale = c.window.usedpiscale,
-                x = c.window.x,
-                y = c.window.y,
-            }), "Could not set window mode")
-        if c.window.icon then
-            assert(love.image, "If an icon is set in love.conf, love.image must be loaded!")
-            love.window.setIcon(love.image.newImageData(c.window.icon))
-        end
-    end
+		love.window.setTitle(c.window.title or c.title)
+		
+		-- Create window mode table with platform-specific filtering
+		local window_mode = {
+			fullscreen = c.window.fullscreen,
+			fullscreentype = c.window.fullscreentype,
+			vsync = c.window.vsync,
+			msaa = c.window.msaa,
+			stencil = c.window.stencil,
+			depth = c.window.depth,
+			resizable = c.window.resizable,
+			minwidth = c.window.minwidth,
+			minheight = c.window.minheight,
+			borderless = c.window.borderless,
+			centered = c.window.centered,
+			displayindex = c.window.displayindex,
+			usedpiscale = c.window.usedpiscale,
+			x = c.window.x,
+			y = c.window.y,
+		}
+		
+		-- Only add these settings on platforms that support them (not Wii U)
+		if not love.system.getOS or love.system.getOS() ~= "cafe" then
+			window_mode.display = c.window.display -- deprecated
+			window_mode.highdpi = c.window.highdpi -- deprecated
+		end
+		
+		assert(love.window.setMode(c.window.width, c.window.height, window_mode), "Could not set window mode")
+	end
 
-    -- The first couple event pumps on some systems (e.g. macOS) can take a
-    -- while. We'd rather hit that slowdown here than in event processing
-    -- within the first frames.
-    if love.event then
-        for _ = 1, 2 do love.event.pump() end
-    end
+	-- The first couple event pumps on some systems (e.g. macOS) can take a
+	-- while. We'd rather hit that slowdown here than in event processing
+	-- within the first frames.
+	if love.event then
+		for i = 1, 2 do love.event.pump() end
+	end
 
-    -- Our first timestep, because window creation can take some time
-    if love.timer then
-        love.timer.step()
-    end
+	-- Our first timestep, because window creation can take some time
+	if love.timer then
+		love.timer.step()
+	end
 
-    if love.filesystem then
-        -- love.filesystem._setAndroidSaveExternal(c.externalstorage)
-        love.filesystem.setIdentity(c.identity or love.filesystem.getIdentity(), c.appendidentity)
-        if love.filesystem.getInfo(main_file) then
-            require(main_file:gsub("%.lua$", ""))
-        end
-    end
+	if love.filesystem then
+		-- love.filesystem._setAndroidSaveExternal(c.externalstorage)
+		love.filesystem.setIdentity(c.identity or love.filesystem.getIdentity(), c.appendidentity)
+		
+		-- Simple loading screen for Wii U
+		if love.graphics and love.graphics.isCreated() then
+			love.graphics.clear(0, 0, 0, 1)  -- black background
 
-    if no_game_code then
-        local opts = love.arg.options
-        local gamepath = opts.game.set and opts.game.arg[1] or ""
-        local gamestr = gamepath == "" and "" or " at " .. '"' .. gamepath .. '"'
+			-- Draw loading text with 3x larger font
+			if love.graphics.print then
+				love.graphics.push()  -- Save current transform
+				love.graphics.setColor(1, 1, 1, 1)  -- White text
+				local w, h = love.graphics.getDimensions()
+				
+				-- Scale text to 3x size from center
+				love.graphics.translate(w/2, h/2)
+				love.graphics.scale(3, 3)
+				love.graphics.translate(-w/6, -h/6)  -- Adjust for scaling
+				
+				love.graphics.pop()  -- Restore transform
+			end
+			
+			if love.graphics.present then
+				love.graphics.present()
+			end
+		end
+		
+		if love.filesystem.getInfo(main_file) then
+			require(main_file:gsub("%.lua$", ""))
+		end
+	end
 
-        error(("No code to run %s\nYour game might be packaged incorrectly.\nMake sure %s is at the top level of the zip or folder.")
-            :format(gamestr, main_file))
-    elseif invalid_game_path then
-        error(("Cannot load game at path '%s'.\nMake sure a folder exists at the specified path."):format(
-            invalid_game_path))
-    end
+	-- TEST ERROR TRIGGER: Uncomment the next line to test error logging
+	-- error("TEST ERROR: This is a test error to verify error logging is working properly")
+
+	if no_game_code then
+		local opts = love.arg.options
+		local gamepath = opts.game.set and opts.game.arg[1] or ""
+		local gamestr = gamepath == "" and "" or " at "..gamepath
+		error("No code to run"..gamestr.."\nYour game might be packaged incorrectly.\nMake sure "..main_file.." is at the top level of the zip or folder.")
+	elseif invalid_game_path then
+		error("Cannot load game at path '" .. invalid_game_path .. "'.\nMake sure a folder exists at the specified path.")
+	end
 end
 
+local xpcall = xpcall
+local coroutine_yield = coroutine.yield
 local print, debug, tostring = print, debug, tostring
 
 local function error_printer(msg, layer)
-    print(debug.traceback("Error: " .. tostring(msg), 1 + (layer or 1)):gsub("\n[^\n]+$", ""))
+	print((debug.traceback("Error: " .. tostring(msg), 1+(layer or 1)):gsub("\n[^\n]+$", "")))
 end
 
 -----------------------------------------------------------
@@ -426,46 +492,64 @@ end
 -----------------------------------------------------------
 
 return function()
-    local func
-    local inerror = false
+	local func
+	local setModalDrawFunc = false
+	local inerror = false
 
-    local function deferErrhand(...)
-        local errhand = love.errorhandler or love.errhand
-        local handler = (not inerror and errhand) or error_printer
-        inerror = true
-        func = handler(...)
-    end
+	local function deferErrhand(...)
+		local errhand = love.errorhandler or love.errhand
+		local handler = (not inerror and errhand) or error_printer
+		inerror = true
+		func = handler(...)
+		inerror = false
+	end
 
-    local function earlyinit()
-        -- If love.boot fails, return 1 and finish immediately
-        local result = xpcall(love.boot, error_printer)
-        if not result then return 1 end
+	local function earlyinit()
+		func = nil
 
-        -- If love.init or love.run fails, don't return a value,
-        -- as we want the error handler to take over
-        result = xpcall(love.init, deferErrhand)
-        if not result then return end
+		-- If love.boot fails, return 1 and finish immediately
+		local result = xpcall(love.boot, error_printer)
+		if not result then return 1 end
 
-        -- NOTE: We can't assign to func directly, as we'd
-        -- overwrite the result of deferErrhand with nil on error
-        local main
-        result, main = xpcall(love.run, deferErrhand)
-        if result then
-            func = main
-        end
-    end
+		-- If love.init or love.run fails, don't return a value,
+		-- as we want the error handler to take over
+		result = xpcall(love.init, deferErrhand)
+		if not result then return end
 
-    func = earlyinit
+		-- NOTE: We can't assign to func directly, as we'd
+		-- overwrite the result of deferErrhand with nil on error
+		local main
+		result, main = xpcall(love.run, deferErrhand)
+		if result then
+			func = main
+			setModalDrawFunc = true
+		elseif inerror then -- Error in error handler
+			print("Error: " .. tostring(main))
+		end
+	end
 
-    while func do
-        local _, retval, restartvalue = xpcall(func, deferErrhand)
-        if retval then
-            return retval, restartvalue
-        end
-        coroutine.yield()
-    end
+	func = earlyinit
+	local prevFunc = nil
 
-    return 1
+	while func do
+		if setModalDrawFunc and love.event and func ~= prevFunc then
+			prevFunc = func
+			-- Check if _setDefaultModalDrawCallback exists before calling it
+			if love.event._setDefaultModalDrawCallback then
+				love.event._setDefaultModalDrawCallback(func)
+			end
+		end
+		local _, retval, restartvalue = xpcall(func, deferErrhand)
+		if retval then return retval, restartvalue end
+		coroutine_yield()
+	end
+
+	-- CRITICAL FIX: Instead of returning 1 (which ends the thread),
+	-- yield indefinitely to keep the Lua thread alive
+	while true do
+		coroutine_yield()
+	end
 end
+
 -- DO NOT REMOVE THE NEXT LINE. It is used to load this file as a C++ string.
 --)luastring"--"

@@ -1,8 +1,7 @@
 #pragma once
 
-#include <common/module.hpp>
-
-#include <utilities/driver/events.hpp>
+#include "common/Module.hpp"
+#include "events.hpp"
 
 #include <vector>
 
@@ -11,24 +10,16 @@ namespace love
     class Touch : public Module
     {
       public:
+        Touch();
+
         virtual ~Touch()
         {}
 
-        ModuleType GetModuleType() const override
-        {
-            return M_TOUCH;
-        };
+        const std::vector<Finger>& getTouches();
 
-        const char* GetName() const override
-        {
-            return "love.touch";
-        }
+        const Finger& getTouch(int64_t id);
 
-        const std::vector<Finger>& GetTouches() const;
-
-        const Finger& GetTouch(int64_t id) const;
-
-        void OnEvent(SubEventType type, const Finger& info);
+        void onEvent(SubEventType type, const Finger& info);
 
       private:
         std::vector<Finger> touches;

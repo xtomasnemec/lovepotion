@@ -1,14 +1,7 @@
 #pragma once
 
-#include <common/console.hpp>
-#include <common/module.hpp>
-
-#include <utilities/bidirectionalmap/bidirectionalmap.hpp>
-
-#include <utilities/sensor/sensorbase.hpp>
-
-#include <map>
-#include <vector>
+#include "common/Map.hpp"
+#include "common/Module.hpp"
 
 namespace love
 {
@@ -22,39 +15,33 @@ namespace love
             SENSOR_MAX_ENUM
         };
 
-        Sensor();
+        Sensor() : Module(M_SENSOR, "love.sensor")
+        {}
 
         virtual ~Sensor()
         {}
 
-        const char* GetName() const override
+        bool hasSensor(SensorType) const
         {
-            return "love.sensor";
+            return false;
         }
 
-        ModuleType GetModuleType() const override
+        bool isEnabled() const
         {
-            return M_SENSOR;
+            return false;
         }
 
-        bool HasSensor(SensorType type);
+        void setEnabled(SensorType, bool);
 
-        bool IsEnabled(SensorType type);
+        std::vector<float> getData(SensorType) const;
 
-        const char* GetSensorName(SensorType type);
-
-        void SetEnabled(SensorType type, bool enable);
-
-        std::array<float, 3> GetData(SensorType type);
+        std::string_view getSensorName(SensorType) const;
 
         // clang-format off
-        static constexpr BidirectionalMap sensorTypes = {
-            "accelerometer", SENSOR_ACCELEROMETER,
-            "gyroscope",     SENSOR_GYROSCOPE
-        };
+        STRINGMAP_DECLARE(SensorTypes, SensorType,
+          { "accelerometer", SENSOR_ACCELEROMETER },
+          { "gyroscope",     SENSOR_GYROSCOPE     }
+        );
         // clang-format on
-
-      protected:
-        std::map<SensorType, SensorBase*> sensors;
     };
 } // namespace love

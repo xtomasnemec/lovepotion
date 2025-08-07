@@ -1,11 +1,45 @@
-#include <common/luax.hpp>
-#include <common/version.hpp>
+#include "common/luax.hpp"
+#include "common/version.hpp"
 
+#ifndef __WIIU__
 #include <luasocket.hpp>
+#endif
 
-#include <modules/love/love.hpp>
+#include "modules/love/love.hpp"
 
-#include <algorithm>
+#include "modules/audio/wrap_Audio.hpp"
+#include "modules/data/wrap_DataModule.hpp"
+#include "modules/event/wrap_Event.hpp"
+#include "modules/filesystem/wrap_Filesystem.hpp"
+#include "modules/font/wrap_Font.hpp"
+#include "modules/graphics/wrap_Graphics.hpp"
+#include "modules/image/wrap_Image.hpp"
+#include "modules/joystick/wrap_JoystickModule.hpp"
+#include "modules/keyboard/wrap_Keyboard.hpp"
+#include "modules/math/wrap_MathModule.hpp"
+#include "modules/sensor/wrap_Sensor.hpp"
+#include "modules/sound/wrap_Sound.hpp"
+#include "modules/system/wrap_System.hpp"
+#include "modules/thread/wrap_Thread.hpp"
+#include "modules/timer/wrap_Timer.hpp"
+#include "modules/touch/wrap_Touch.hpp"
+#include "modules/window/wrap_Window.hpp"
+
+#include "boot.hpp"
+
+// #region DEBUG CONSOLE
+#include <arpa/inet.h>
+#include <netinet/tcp.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+
+#if defined(__WIIU__)
+    #include <unistd.h>
+#endif
+// #endregion
+
+#include <stdio.h>
+#include <string.h>
 
 static constexpr char arg_lua[] = {
 #include "scripts/arg.lua"
@@ -20,76 +54,154 @@ static constexpr char boot_lua[] = {
 };
 
 static constexpr char nogame_lua[] = {
-#include <scripts/nogame.lua>
+#include "scripts/nogame.lua"
 };
-
-#include <modules/graphics/graphics.tcc>
-
-#include <modules/audio/wrap_audio.hpp>
-#include <modules/data/wrap_data.hpp>
-#include <modules/event/wrap_event.hpp>
-#include <modules/filesystem/wrap_filesystem.hpp>
-#include <modules/font/wrap_fontmodule.hpp>
-#include <modules/graphics/wrap_graphics.hpp>
-#include <modules/image/wrap_imagemodule.hpp>
-#include <modules/joystick/wrap_joystickmodule.hpp>
-#include <modules/keyboard/wrap_keyboard.hpp>
-#include <modules/math/wrap_math.hpp>
-#include <modules/physics/wrap_physics.hpp>
-#include <modules/sensor/wrap_sensor.hpp>
-#include <modules/sound/wrap_sound.hpp>
-#include <modules/system/wrap_system.hpp>
-#include <modules/thread/wrap_threadmodule.hpp>
-#include <modules/timer/wrap_timer.hpp>
-#include <modules/touch/wrap_touch.hpp>
-#include <modules/window/wrap_window.hpp>
-
-#include <arpa/inet.h>
-#include <sys/socket.h>
 
 // clang-format off
-static constexpr luaL_Reg modules[] =
-{
-    { "love.audio",      Wrap_Audio::Register          },
-    { "love.data",       Wrap_DataModule::Register     },
-    { "love.event",      Wrap_Event::Register          },
-    { "love.filesystem", Wrap_Filesystem::Register     },
-    { "love.font",       Wrap_FontModule::Register     },
-    { "love.graphics",   Wrap_Graphics::Register       },
-    { "love.joystick",   Wrap_JoystickModule::Register },
-    { "love.keyboard",   Wrap_Keyboard::Register       },
-    { "love.math",       Wrap_Math::Register           },
-    { "love.image",      Wrap_ImageModule::Register    },
-    { "love.physics",    Wrap_Physics::Register        },
-    { "love.sensor",     Wrap_Sensor::Register         },
-    { "love.sound",      Wrap_Sound::Register          },
-    { "love.system",     Wrap_System::Register         },
-    { "love.thread",     Wrap_ThreadModule::Register   },
-    { "love.timer",      Wrap_Timer::Register          },
-    { "love.touch",      Wrap_Touch::Register          },
-    { "love.window",     Wrap_Window::Register         },
-    { "love.arg",        love::LoadArgs                },
-    { "love.callbacks",  love::LoadCallbacks           },
-    { "love.boot",       love::Boot                    },
-    { "love.nogame",     love::NoGame                  },
-    { 0,                 0                             }
-};
+static constexpr std::array<const luaL_Reg, 21> modules =
+{{
+    { "love.audio",      Wrap_Audio::open          },
+    { "love.data",       Wrap_DataModule::open     },
+    { "love.event",      Wrap_Event::open          },
+    { "love.filesystem", Wrap_Filesystem::open     },
+    { "love.font",       Wrap_FontModule::open     },
+    { "love.graphics",   Wrap_Graphics::open       },
+    { "love.joystick",   Wrap_JoystickModule::open },
+    { "love.image",      Wrap_Image::open          },
+    { "love.keyboard",   Wrap_Keyboard::open       },
+    { "love.math",       Wrap_MathModule::open     },
+    { "love.sensor",     Wrap_Sensor::open         },
+    { "love.sound",      Wrap_Sound::open          },
+    { "love.system",     Wrap_System::open         },
+    { "love.thread",     Wrap_Thread::open         },
+    { "love.timer",      Wrap_Timer::open          },
+    { "love.touch",      Wrap_Touch::open          },
+    { "love.window",     Wrap_Window::open         },
+    { "love.nogame",     love_openNoGame           },
+    { "love.arg",        love_openArg              },
+    { "love.callbacks",  love_openCallbacks        },
+    { "love.boot",       love_openBoot             }
+}};
 // clang-format on
 
-#include <modules/system_ext.hpp>
+const char* love_getVersion()
+{
+    return __LOVE_VERSION__;
+}
 
-static void addCompatibilityAlias(lua_State* L, const char* module, const char* name,
-                                  const char* alias)
+const char* love_getCodename()
+{
+    return love::CODENAME;
+}
+
+static int w_love_getVersion(lua_State* L)
+{
+    lua_pushinteger(L, love::LOVE_FRAMEWORK.major);
+    lua_pushinteger(L, love::LOVE_FRAMEWORK.minor);
+    lua_pushinteger(L, love::LOVE_FRAMEWORK.revision);
+
+    lua_pushstring(L, love::CODENAME);
+
+    return 4;
+}
+
+int love_isVersionCompatible(lua_State* L)
+{
+    love::Version check {};
+
+    if (lua_type(L, 1) == LUA_TSTRING)
+        check = love::Version(luaL_checkstring(L, 1));
+    else
+    {
+        int major    = luaL_checkinteger(L, 1);
+        int minor    = luaL_checkinteger(L, 2);
+        int revision = luaL_optinteger(L, 3, 0);
+
+        check = love::Version(major, minor, revision);
+    }
+
+    for (auto& item : love::COMPATIBILITY)
+    {
+        if (check != item)
+            continue;
+
+        lua_pushboolean(L, true);
+        return 1;
+    }
+
+    lua_pushboolean(L, false);
+
+    return 1;
+}
+
+static bool hasDeprecationOutput = true;
+static int love_hasDeprecationOutput(lua_State* L)
+{
+    love::luax_pushboolean(L, hasDeprecationOutput);
+
+    return 1;
+}
+
+static int love_setDeprecationOutput(lua_State* L)
+{
+    bool enable          = love::luax_checkboolean(L, 1);
+    hasDeprecationOutput = enable;
+
+    return 0;
+}
+
+#if defined(__3DS__)
+static bool hasOSSpeedup = false;
+/*
+** Sets the New Nintendo 3DS "OS Speedup"
+** This does nothing™ for Old 3DS systems.
+*/
+static int love_setOSSpeedup(lua_State* L)
+{
+    const auto enable = love::luax_checkboolean(L, 1);
+    osSetSpeedupEnable(enable);
+
+    hasOSSpeedup = enable;
+
+    return 0;
+}
+
+static int love_hasOSSpeedup(lua_State* L)
+{
+    love::luax_pushboolean(L, hasOSSpeedup);
+
+    return 1;
+}
+#endif
+
+static constexpr const char* ERROR_PANIC = "PANIC: unprotected error in call to Lua API (%s)";
+
+/*
+ * If an error happens outside any protected environment, Lua calls a panic function and then calls
+ * exit(EXIT_FAILURE), thus exiting the host application. We want to inform the user of the error.
+ * However, this will only be informative via the console.
+ */
+static int love_atpanic(lua_State* L)
+{
+    char message[0x80] {};
+    std::snprintf(message, sizeof(message), ERROR_PANIC, lua_tostring(L, -1));
+    std::printf("%s\n", message);
+
+    return 0;
+}
+
+static void luax_addcompatibilityalias(lua_State* L, const char* module, const char* name, const char* alias)
 {
     lua_getglobal(L, module);
 
     if (lua_istable(L, -1))
     {
         lua_getfield(L, -1, alias);
-        bool hasAlias = !lua_isnoneornil(L, -1);
+        bool hasalias = !lua_isnoneornil(L, -1);
+
         lua_pop(L, 1);
 
-        if (!hasAlias)
+        if (!hasalias)
         {
             lua_getfield(L, -1, name);
             lua_setfield(L, -2, alias);
@@ -99,102 +211,104 @@ static void addCompatibilityAlias(lua_State* L, const char* module, const char* 
     lua_pop(L, 1);
 }
 
-int love::Initialize(lua_State* L)
+int love_initialize(lua_State* L)
 {
-    for (size_t i = 0; modules[i].name != nullptr; i++)
-        luax::Preload(L, modules[i].func, modules[i].name);
+    for (auto& module : modules)
+        love::luax_preload(L, module.func, module.name);
 
-    luax::InsistPinnedThread(L);
-    luax::InsistGlobal(L, "love");
+    love::luax_insistpinnedthread(L);
+    love::luax_insistglobal(L, "love");
 
-    // love._os
-    lua_pushstring(L, System<Console::Which>::GetOS());
-    lua_setfield(L, -2, "_os");
-
-    // love._console
-    lua_pushstring(L, __CONSOLE__);
-    lua_setfield(L, -2, "_console");
-
-    // love._potion_version
-    lua_pushstring(L, __APP_VERSION__);
-    lua_setfield(L, -2, "_potion_version");
-
-    // love._version
     lua_pushstring(L, __LOVE_VERSION__);
     lua_setfield(L, -2, "_version");
 
-    // love._version_(major, minor, micro, codename)
-    lua_pushnumber(L, LOVE_FRAMEWORK.major);
+    lua_pushnumber(L, love::LOVE_FRAMEWORK.major);
     lua_setfield(L, -2, "_version_major");
 
-    lua_pushnumber(L, LOVE_FRAMEWORK.minor);
+    lua_pushnumber(L, love::LOVE_FRAMEWORK.minor);
     lua_setfield(L, -2, "_version_minor");
 
-    lua_pushnumber(L, LOVE_FRAMEWORK.micro);
+    lua_pushnumber(L, love::LOVE_FRAMEWORK.revision);
     lua_setfield(L, -2, "_version_revision");
 
-    lua_pushstring(L, CODENAME);
+    lua_pushstring(L, love::CODENAME);
     lua_setfield(L, -2, "_version_codename");
 
-    lua_pushcfunction(L, love::OpenConsole);
+    lua_pushcfunction(L, love_openConsole);
     lua_setfield(L, -2, "_openConsole");
 
-    lua_register(L, "print", love::Print);
-
-    // love._potion_(major, minor, micro)
-    lua_pushnumber(L, LOVE_POTION.major);
-    lua_setfield(L, -2, "_potion_version_major");
-
-    lua_pushnumber(L, LOVE_POTION.minor);
-    lua_setfield(L, -2, "_potion_version_minor");
-
-    lua_pushnumber(L, LOVE_POTION.micro);
-    lua_setfield(L, -2, "_potion_version_revision");
+    lua_register(L, "print", love_print);
 
     lua_newtable(L);
-    for (int index = 0; love::COMPATIBILITY[index] != nullptr; index++)
+    for (size_t index = 0; index < love::COMPATIBILITY.size(); index++)
     {
         lua_pushstring(L, love::COMPATIBILITY[index]);
         lua_rawseti(L, -2, index + 1);
     }
     lua_setfield(L, -2, "_version_compat");
 
-    lua_pushcfunction(L, love::GetVersion);
+    lua_pushcfunction(L, w_love_getVersion);
     lua_setfield(L, -2, "getVersion");
 
-    lua_pushcfunction(L, love::IsVersionCompatible);
+    lua_pushcfunction(L, love_isVersionCompatible);
     lua_setfield(L, -2, "isVersionCompatible");
 
-    lua_pushstring(L, System<Console::Which>::GetOS());
+    lua_pushstring(L, __OS__);
     lua_setfield(L, -2, "_os");
 
     lua_pushstring(L, __CONSOLE__);
     lua_setfield(L, -2, "_console");
 
-    luax::Require(L, "love.data");
+    lua_pushcfunction(L, love_setDeprecationOutput);
+    lua_setfield(L, -2, "setDeprecationOutput");
+
+    lua_pushcfunction(L, love_hasDeprecationOutput);
+    lua_setfield(L, -2, "hasDeprecationOutput");
+
+#if defined(__3DS__)
+    lua_pushcfunction(L, love_setOSSpeedup);
+    lua_setfield(L, -2, "_setOSSpeedup");
+
+    lua_pushcfunction(L, love_hasOSSpeedup);
+    lua_setfield(L, -2, "_hasOSSpeedup");
+#endif
+
+    love::luax_require(L, "love.data");
     lua_pop(L, 1);
 
 #if LUA_VERSION_NUM <= 501
-    addCompatibilityAlias(L, "math", "fmod", "mod");
-    addCompatibilityAlias(L, "string", "gmatch", "gfind");
+    luax_addcompatibilityalias(L, "math", "fmod", "mod");
+    luax_addcompatibilityalias(L, "string", "gmatch", "gfind");
 #endif
 
+#ifndef __WIIU__
     love::luasocket::preload(L);
+#endif
+    love::luax_preload(L, luaopen_luautf8, "utf8");
+    love::luax_preload(L, luaopen_https, "https");
 
-    luax::Preload(L, luaopen_luautf8, "utf8");
-    luax::Preload(L, luaopen_https, "https");
+    // lua_atpanic(L, love_atpanic);
 
     return 1;
 }
 
-int love::OpenConsole(lua_State* L)
+/**
+ * @brief Initializes the console output.
+ *
+ * Users will need to use telnet on Windows or netcat on Linux/macOS:
+ * `telnet/nc 192.168.x.x 8000`
+ */
+
+#define SEND(sockfd, s) send(sockfd, s, strlen(s), 0)
+
+int love_openConsole(lua_State* L)
 {
     struct sockaddr_in server;
     int lsockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (lsockfd < 0)
     {
-        luax::PushBoolean(L, false);
+        love::luax_pushboolean(L, false);
         return 1;
     }
 
@@ -207,14 +321,39 @@ int love::OpenConsole(lua_State* L)
 
     if (bind(lsockfd, (struct sockaddr*)&server, sizeof(server)) < 0)
     {
-        luax::PushBoolean(L, false);
+        love::luax_pushboolean(L, false);
         close(lsockfd);
         return 1;
     }
 
     if (listen(lsockfd, 5) < 0)
     {
-        luax::PushBoolean(L, false);
+        love::luax_pushboolean(L, false);
+        close(lsockfd);
+        return 1;
+    }
+
+    fd_set set;
+    FD_ZERO(&set);
+    FD_SET(lsockfd, &set);
+
+    struct timeval timeout;
+    timeout.tv_sec  = 3;
+    timeout.tv_usec = 0;
+
+    const auto result = select(lsockfd + 1, &set, NULL, NULL, &timeout);
+
+    if (result == -1)
+    {
+        // select(...) failed
+        love::luax_pushboolean(L, false);
+        close(lsockfd);
+        return 1;
+    }
+    else if (result == 0)
+    {
+        // timeout occurred
+        love::luax_pushboolean(L, false);
         close(lsockfd);
         return 1;
     }
@@ -224,7 +363,7 @@ int love::OpenConsole(lua_State* L)
 
     if (sockfd < 0)
     {
-        luax::PushBoolean(L, false);
+        love::luax_pushboolean(L, false);
         return 1;
     }
 
@@ -233,11 +372,11 @@ int love::OpenConsole(lua_State* L)
 
     close(sockfd);
 
-    luax::PushBoolean(L, true);
+    love::luax_pushboolean(L, true);
     return 1;
 }
 
-int love::Print(lua_State* L)
+int love_print(lua_State* L)
 {
     int argc = lua_gettop(L);
     lua_getglobal(L, "tostring");
@@ -263,82 +402,54 @@ int love::Print(lua_State* L)
     }
 
     std::printf("[LOVE] %s\r\n", result.c_str());
+    
+#ifdef __WIIU__
+    // Also log to file for debugging
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile == nullptr) {
+        logFile = fopen("/vol/external01/simple_debug.log", "a");
+    }
+    if (logFile == nullptr) {
+        logFile = fopen("simple_debug.log", "a");
+    }
+    
+    if (logFile != nullptr) {
+        fprintf(logFile, "[LOVE] %s\n", result.c_str());
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+    
     return 0;
 }
 
-int love::GetVersion(lua_State* L)
+int love_openNoGame(lua_State* L)
 {
-    lua_pushinteger(L, LOVE_FRAMEWORK.major);
-    lua_pushinteger(L, LOVE_FRAMEWORK.minor);
-    lua_pushinteger(L, LOVE_FRAMEWORK.micro);
-    lua_pushstring(L, CODENAME);
-
-    return 4;
-}
-
-int love::SetGammaCorrect(lua_State* L)
-{
-    love::Graphics<>::SetGammaCorrect((bool)lua_toboolean(L, 1));
-
-    return 0;
-}
-
-int love::IsVersionCompatible(lua_State* L)
-{
-    Version check {};
-
-    if (lua_type(L, 1) == LUA_TSTRING)
-        check = Version(luaL_checkstring(L, 1));
-    else
-    {
-        int major    = luaL_checkinteger(L, 1);
-        int minor    = luaL_checkinteger(L, 2);
-        int revision = luaL_optinteger(L, 3, 0);
-
-        check = Version(major, minor, revision);
-    }
-
-    for (auto& item : COMPATIBILITY)
-    {
-        if (check != item)
-            continue;
-
-        lua_pushboolean(L, true);
-        return 1;
-    }
-
-    lua_pushboolean(L, false);
-
-    return 1;
-}
-
-int love::LoadArgs(lua_State* L)
-{
-    if (luaL_loadbuffer(L, arg_lua, sizeof(arg_lua), "=[love \"arg.lua\"]") == 0)
+    if (luaL_loadbuffer(L, nogame_lua, sizeof(nogame_lua), "nogame.lua") == 0)
         lua_call(L, 0, 1);
 
     return 1;
 }
 
-int love::LoadCallbacks(lua_State* L)
+int love_openArg(lua_State* L)
 {
-    if (luaL_loadbuffer(L, callbacks_lua, sizeof(callbacks_lua), "=[love \"callbacks.lua\"]") == 0)
+    if (luaL_loadbuffer(L, arg_lua, sizeof(arg_lua), "arg.lua") == 0)
         lua_call(L, 0, 1);
 
     return 1;
 }
 
-int love::Boot(lua_State* L)
+int love_openCallbacks(lua_State* L)
 {
-    if (luaL_loadbuffer(L, boot_lua, sizeof(boot_lua), "=[love \"boot.lua\"]") == 0)
+    if (luaL_loadbuffer(L, callbacks_lua, sizeof(callbacks_lua), "callbacks.lua") == 0)
         lua_call(L, 0, 1);
 
     return 1;
 }
 
-int love::NoGame(lua_State* L)
+int love_openBoot(lua_State* L)
 {
-    if (luaL_loadbuffer(L, nogame_lua, sizeof(nogame_lua), "=[love \"nogame.lua\"]") == 0)
+    if (luaL_loadbuffer(L, boot_lua, sizeof(boot_lua), "boot.lua") == 0)
         lua_call(L, 0, 1);
 
     return 1;

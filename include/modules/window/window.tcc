@@ -1,40 +1,29 @@
 #pragma once
 
-#include <common/console.hpp>
-#include <common/module.hpp>
-#include <common/strongreference.hpp>
+#include "common/Module.hpp"
+#include "common/Optional.hpp"
+#include "common/math.hpp"
 
-#include <modules/graphics/graphics.tcc>
-
-#include <utilities/bidirectionalmap/bidirectionalmap.hpp>
+#include "common/Map.hpp"
+#include "common/screen.hpp"
 
 namespace love
 {
-    template<Console::Platform T>
-    class Graphics;
+    static inline bool highDPIAllowed = false;
 
-    template<Console::Platform T = Console::ALL>
-    class Window : public Module
+    inline void setHighDPIAllowed(bool allow)
+    {
+        highDPIAllowed = allow;
+    }
+
+    inline bool isHighDPIAllowed()
+    {
+        return highDPIAllowed;
+    }
+
+    class WindowBase : public Module
     {
       public:
-        struct WindowSize
-        {
-            int width;
-            int height;
-
-            bool operator==(const WindowSize& other) const
-            {
-                return other.width == this->width && other.height == this->height;
-            }
-        };
-
-        enum FullscreenType
-        {
-            FULLSCREEN_EXCLUSIVE,
-            FULLSCREEN_DESKTOP,
-            FULLSCREEN_MAX_ENUM
-        };
-
         enum Setting
         {
             SETTING_FULLSCREEN,
@@ -56,127 +45,231 @@ namespace love
             SETTING_MAX_ENUM
         };
 
-        struct WindowSettings
+        enum FullscreenType
         {
-            bool fullscreen               = false;
-            FullscreenType fullScreenType = Window::FULLSCREEN_DESKTOP;
-            int vsync                     = 1;
-            int msaa                      = 0;
-            bool stencil                  = true;
-            int depth                     = 0;
-            bool resizable                = false;
-            int minwidth                  = 1;
-            int minheight                 = 1;
-            bool borderless               = false;
-            bool centered                 = true;
-            int displayindex              = 0;
-            bool usedpiscale              = true;
-            double refreshrate            = 0.0;
-            bool useposition              = false;
-            int x                         = 0;
-            int y                         = 0;
+            FULLSCREEN_EXCLUSIVE,
+            FULLSCREEN_DESKTOP,
+            FULLSCREEN_WINDOWED,
+            FULLSCREEN_MAX_ENUM
         };
 
-        Window() : open(false), width(800), height(600), pixelWidth(800), pixelHeight(600)
+        enum MessageBoxType
+        {
+            MESSAGEBOX_ERROR,
+            MESSAGEBOX_WARNING,
+            MESSAGEBOX_INFO,
+            MESSAGEBOX_MAX_ENUM
+        };
+
+        enum DisplayOrientation
+        {
+            ORIENTATION_UNKNOWN,
+            ORIENTATION_LANDSCAPE,
+            ORIENTATION_LANDSCAPE_FLIPPED,
+            ORIENTATION_PORTRAIT,
+            ORIENTATION_PORTRAIT_FLIPPED,
+            ORIENTATION_MAX_ENUM
+        };
+
+        struct WindowSize
+        {
+            int width;
+            int height;
+
+            bool operator==(const WindowSize& w) const
+            {
+                return (width == w.width) && (height == w.height);
+            }
+        };
+
+        struct WindowSettings
+        {
+            bool fullscreen       = false;
+            FullscreenType fsType = FullscreenType::FULLSCREEN_DESKTOP;
+            int vsync             = 1;
+            int msaa              = 0;
+            bool stencil          = true;
+            bool depth            = false;
+            bool resizable        = false;
+            int minwidth          = 1;
+            int minheight         = 1;
+            bool borderless       = false;
+            bool centered         = true;
+            int displayindex      = 0;
+            bool usedpiscale      = true;
+            double refreshrate    = 0.0;
+            bool useposition      = false;
+            int x                 = 0;
+            int y                 = 0;
+        };
+
+        struct MessageBoxData
+        {
+            MessageBoxType type;
+
+            std::string title;
+            std::string message;
+
+            std::vector<std::string> buttons;
+            int enterButtonIndex;
+            int escapeButtonIndex;
+
+            bool attachToWindow;
+        };
+
+        WindowBase(const char* name) :
+            Module(M_WINDOW, name),
+            pixelWidth(0),
+            pixelHeight(0),
+            windowWidth(0),
+            windowHeight(0),
+            open(false)
         {}
 
-        virtual ~Window()
+        virtual ~WindowBase()
         {}
 
-        virtual ModuleType GetModuleType() const
-        {
-            return M_WINDOW;
-        }
-
-        virtual const char* GetName() const
-        {
-            return "love.window";
-        }
-
-        bool IsOpen() const
+        bool isOpen() const
         {
             return this->open;
         }
 
-        int GetWidth() const
+        virtual void updateSettings(const WindowSettings& newSettings, bool updateGraphicsViewport);
+
+        void getWindow(int& width, int& height, WindowSettings& newSettings);
+
+        bool setFullscreen(bool fullscreen, FullscreenType type);
+
+        bool setFullscreen(bool fullscreen);
+
+        int getDisplayCount() const
         {
-            return this->width;
+            return love::getScreenInfo().size();
         }
 
-        int GetHeight() const
+        std::string_view getDisplayName(int displayIndex) const
         {
-            return this->height;
+            const auto& info = love::getScreenInfo((Screen)displayIndex);
+
+            return info.name;
         }
 
-        int GetPixelWidth() const
+        std::vector<WindowSize> getFullscreenSizes(int displayIndex) const
         {
-            return this->pixelWidth;
+            const auto& info = love::getScreenInfo((Screen)displayIndex);
+
+            return { { info.width, info.height } };
         }
 
-        int GetPixelHeight() const
+        void getDesktopDimensions(int displayIndex, int& width, int& height) const
         {
-            return this->pixelHeight;
+            const auto result = this->getFullscreenSizes(displayIndex);
+
+            width  = result.back().width;
+            height = result.back().height;
         }
 
-        float GetDPIScale() const
+        DisplayOrientation getDisplayOrientation(int) const
         {
-            return 1.0f;
+            return DisplayOrientation::ORIENTATION_LANDSCAPE;
         }
 
-        void WindowToPixelCoords(double* x, double* y) const
+        double getDPIScale() const
         {
-            if (x != nullptr)
-                *x = (*x) * ((double)this->pixelWidth / (double)this->width);
-
-            if (y != nullptr)
-                *y = (*y) * ((double)this->pixelHeight / (double)this->height);
+            return 1.0;
         }
 
-        void PixelToWindowCoords(double* x, double* y) const
+        double getNativeDPIScale() const
         {
-            if (x != nullptr)
-                *x = (*x) * ((double)this->width / (double)this->pixelWidth);
+            return 1.0;
+        }
 
-            if (y != nullptr)
-                *y = (*y) * ((double)this->height / (double)this->pixelHeight);
+        double toPixels(double x) const
+        {
+            return x * this->getDPIScale();
+        }
+
+        void toPixels(double x, double y, double& pixelx, double& pixely) const
+        {
+            double scale = this->getDPIScale();
+
+            pixelx = x * scale;
+            pixely = y * scale;
+        }
+
+        void fromPixels(int pixelx, int pixely, double& x, double& y) const
+        {
+            double scale = this->getDPIScale();
+
+            x = pixelx / scale;
+            y = pixely / scale;
+        }
+
+        double fromPixels(int pixels) const
+        {
+            return pixels / this->getDPIScale();
         }
 
         // clang-format off
-        static constexpr BidirectionalMap windowSettings = {
-            "fullscreen",     SETTING_FULLSCREEN,
-            "fullscreentype", SETTING_FULLSCREEN_TYPE,
-            "vsync",          SETTING_VSYNC,
-            "msaa",           SETTING_MSAA,
-            "stencil",        SETTING_STENCIL,
-            "depth",          SETTING_DEPTH,
-            "resizable",      SETTING_RESIZABLE,
-            "minwidth",       SETTING_MIN_WIDTH,
-            "minheight",      SETTING_MIN_HEIGHT,
-            "borderless",     SETTING_BORDERLESS,
-            "centered",       SETTING_CENTERED,
-            "displayindex",   SETTING_DISPLAYINDEX,
-            "usedpiscale",    SETTING_USE_DPISCALE,
-            "refreshrate",    SETTING_REFRESHRATE,
-            "x",              SETTING_X,
-            "y",              SETTING_Y
-        };
+        STRINGMAP_DECLARE(Settings, Setting,
+            { "fullscreen",     SETTING_FULLSCREEN      },
+            { "fullscreentype", SETTING_FULLSCREEN_TYPE },
+            { "vsync",          SETTING_VSYNC           },
+            { "msaa",           SETTING_MSAA            },
+            { "stencil",        SETTING_STENCIL         },
+            { "depth",          SETTING_DEPTH           },
+            { "resizable",      SETTING_RESIZABLE       },
+            { "minwidth",       SETTING_MIN_WIDTH       },
+            { "minheight",      SETTING_MIN_HEIGHT      },
+            { "borderless",     SETTING_BORDERLESS      },
+            { "centered",       SETTING_CENTERED        },
+            { "displayindex",   SETTING_DISPLAYINDEX    },
+            { "usedpiscale",    SETTING_USE_DPISCALE    },
+            { "refreshrate",    SETTING_REFRESHRATE     },
+            { "x",              SETTING_X               },
+            { "y",              SETTING_Y               }
+        );
 
-        static constexpr BidirectionalMap fullScreenTypes = {
-            "exclusive", FULLSCREEN_EXCLUSIVE,
-            "desktop",   FULLSCREEN_DESKTOP
-        };
+        STRINGMAP_DECLARE(FullscreenTypes, FullscreenType,
+            { "exclusive", FULLSCREEN_EXCLUSIVE },
+            { "desktop",   FULLSCREEN_DESKTOP   }
+        );
+
+        STRINGMAP_DECLARE(MessageBoxTypes, MessageBoxType,
+            { "error",   MESSAGEBOX_ERROR   },
+            { "warning", MESSAGEBOX_WARNING },
+            { "info",    MESSAGEBOX_INFO    }
+        );
+
+        STRINGMAP_DECLARE(DisplayOrientations, DisplayOrientation,
+            { "unknown",          ORIENTATION_UNKNOWN           },
+            { "landscape",        ORIENTATION_LANDSCAPE         },
+            { "landscapeflipped", ORIENTATION_LANDSCAPE_FLIPPED },
+            { "portrait",         ORIENTATION_PORTRAIT          },
+            { "portraitflipped",  ORIENTATION_PORTRAIT_FLIPPED  }
+        );
         // clang-format on
 
       protected:
-        bool open;
-        bool sleepAllowed;
-
-        WindowSettings settings;
-
-        int width;
-        int height;
+        bool createWindowAndContext(int x, int y, int width, int height, uint32_t flags)
+        {
+            // Set window dimensions for Wii U
+            this->windowWidth = width;
+            this->windowHeight = height;
+            this->pixelWidth = width;
+            this->pixelHeight = height;
+            this->open = true;
+            return true;
+        }
 
         int pixelWidth;
         int pixelHeight;
+
+        int windowWidth;
+        int windowHeight;
+
+        bool open;
+
+        WindowSettings settings;
     };
 } // namespace love

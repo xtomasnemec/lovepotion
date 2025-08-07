@@ -1,36 +1,27 @@
 #pragma once
 
-#include <common/module.hpp>
+#include "common/Module.hpp"
+#include "common/Stream.hpp"
 
-#include <utilities/decoder/decoder.hpp>
-#include <utilities/stream/stream.hpp>
-
-#include <objects/data/sounddata/sounddata.hpp>
+#include "modules/sound/Decoder.hpp"
+#include "modules/sound/SoundData.hpp"
 
 namespace love
 {
     class Sound : public Module
     {
       public:
+        Sound();
+
         virtual ~Sound();
 
-        ModuleType GetModuleType() const override
-        {
-            return M_SOUND;
-        }
+        SoundData* newSoundData(Decoder* decoder) const;
 
-        const char* GetName() const override
-        {
-            return "love.sound";
-        }
+        SoundData* newSoundData(int samples, int sampleRate, int bitDepth, int channels) const;
 
-        Decoder* NewDecoder(Stream* stream, int bufferSize);
+        SoundData* newSoundData(void* data, int samples, int sampleRate, int bitDepth,
+                                int channels) const;
 
-        SoundData* NewSoundData(Decoder* decoder);
-
-        SoundData* NewSoundData(int samples, int sampleRate, int bitDepth, int channels);
-
-        SoundData* NewSoundData(void* data, int samples, int sampleRate, int bitDepth,
-                                int channels);
+        Decoder* newDecoder(Stream* stream, int bufferSize) const;
     };
 } // namespace love

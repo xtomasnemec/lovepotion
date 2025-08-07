@@ -45,6 +45,7 @@ end
 
 -- Checks whether a path is absolute or not.
 function love.path.abs(p)
+
     local tmp = love.path.normalslashes(p)
 
     -- Path is absolute if it starts with a "/".
@@ -87,10 +88,10 @@ function love.path.leaf(p)
     local last = p
 
     while a do
-        a = p:find("/", a + 1)
+        a = p:find("/", a+1)
 
         if a then
-            last = p:sub(a + 1)
+            last = p:sub(a+1)
         end
     end
 
@@ -101,7 +102,7 @@ end
 -- will typically the executable, for instance "lua5.1.exe".
 function love.arg.getLow(a)
     local m = math.huge
-    for k, v in pairs(a) do
+    for k,v in pairs(a) do
         if k < m then
             m = k
         end
@@ -124,7 +125,7 @@ function love.arg.parseOption(m, i)
 
     if m.a > 0 then
         m.arg = {}
-        for j = i, i + m.a - 1 do
+        for j=i,i+m.a-1 do
             love.arg.optionIndices[j] = true
             table.insert(m.arg, arg[j])
         end
@@ -134,6 +135,7 @@ function love.arg.parseOption(m, i)
 end
 
 function love.arg.parseOptions(arg)
+
     local game
     local argc = #arg
 
@@ -144,8 +146,8 @@ function love.arg.parseOptions(arg)
 
         if m and m ~= "" and love.arg.options[m] and not love.arg.options[m].set then
             love.arg.optionIndices[i] = true
-            i = i + love.arg.parseOption(love.arg.options[m], i + 1)
-        elseif m == "" then  -- handle '--' as an option
+            i = i + love.arg.parseOption(love.arg.options[m], i+1)
+        elseif m == "" then -- handle '--' as an option
             love.arg.optionIndices[i] = true
             if not game then -- handle '--' followed by game name
                 game = i + 1
@@ -170,7 +172,7 @@ function love.arg.parseGameArguments(a)
     local _, lowindex = love.arg.getLow(a)
 
     local o = lowindex
-    for i = lowindex, #a do
+    for i=lowindex, #a do
         if not love.arg.optionIndices[i] then
             out[o] = a[i]
             o = o + 1

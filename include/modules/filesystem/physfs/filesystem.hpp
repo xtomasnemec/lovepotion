@@ -1,108 +1,100 @@
 #pragma once
 
+#include "modules/filesystem/Filesystem.tcc"
+#include "modules/filesystem/NativeFile.hpp"
+#include "modules/filesystem/physfs/File.hpp"
+
 #include <map>
 
-#include <modules/filesystem/filesystem.hpp>
-
-#include <objects/file/physfs/file.hpp>
-
-#include <array>
-#include <string>
-
-namespace love::physfs
+namespace love
 {
-    class Filesystem : public love::Filesystem
+    class Filesystem final : public FilesystemBase
     {
+      public:
+        static const char* getLastError();
+
       public:
         Filesystem();
 
         virtual ~Filesystem();
 
-        const char* GetName() const override
-        {
-            return "love.filesystem.physfs";
-        }
+        void init(const char* arg0);
 
-        void Init(const char* arg0) override;
+        void setFused(bool fused);
 
-        void SetFused(bool fused) override;
+        bool isFused() const;
 
-        bool IsFused() const override;
+        bool setupWriteDirectory();
 
-        bool SetIdentity(const char* identity, bool appendToPath = false) override;
+        bool setIdentity(const char* identity, bool appendToPath = false);
 
-        std::string GetIdentity() const override;
+        std::string getIdentity() const;
 
-        bool SetSource(const char* source) override;
+        bool setSource(const char* path);
 
-        std::string GetSource() const override;
+        std::string getSource() const;
 
-        bool Mount(const char* archive, const char* mountPoint, bool appendToPath = false) override;
+        bool mount(const char* archive, const char* mountpoint, bool appendToPath = false);
 
-        bool Mount(Data* data, const char* name, const char* mountPoint,
-                   bool appendToPath = false) override;
+        // clang-format off
+        bool mount(Data* data, const char* archive, const char* mountpoint, bool appendToPath = false);
 
-        bool MountFullPath(const char* archive, const char* mountPoint,
-                           MountPermissions permissions, bool appendToPath = false) override;
+        bool mountFullPath(const char* archive, const char* mountpoint, MountPermissions permissions, bool appendToPath);
 
-        bool MountCommonPath(CommonPath path, const char* mountPoint, MountPermissions permissions,
-                             bool appendToPath = false) override;
+        bool mountCommonPath(CommonPath path, const char* mountPoint, MountPermissions permissions, bool appendToPath);
+        // clang-format on
 
-        bool UnMount(const char* archive) override;
+        bool unmount(const char* archive);
 
-        bool UnMount(Data* data) override;
+        bool unmount(Data* data);
 
-        bool UnMount(CommonPath path) override;
+        bool unmount(CommonPath path);
 
-        bool UnMountFullPath(const char* fullPath) override;
+        bool unmountFullPath(const char* fullpath);
 
-        love::File* OpenFile(const char* filename, File::Mode mode) const override;
+        FileBase* openFile(const std::string& filename, File::Mode mode) const;
 
-        std::string GetFullCommonPath(CommonPath path) override;
+        FileBase* openNativeFile(const std::string& filepath, File::Mode mode) const;
 
-        std::string GetWorkingDirectory() override;
+        std::string getFullCommonPath(CommonPath path);
 
-        std::string GetUserDirectory() override;
+        std::string getWorkingDirectory();
 
-        std::string GetAppdataDirectory() override;
+        std::string getUserDirectory();
 
-        std::string GetSaveDirectory() override;
+        std::string getAppdataDirectory();
 
-        std::string GetSourceBaseDirectory() const override;
+        std::string getSaveDirectory();
 
-        std::string GetRealDirectory(const char* filename) const override;
+        std::string getSourceBaseDirectory();
 
-        bool Exists(const char* filename) const override;
+        std::string getRealDirectory(const char* filename) const;
 
-        bool GetInfo(const char* filepath, Info& info) const override;
+        bool exists(const char* filepath) const;
 
-        bool CreateDirectory(const char* directory) override;
+        bool getInfo(const char* filepath, Info& info) const;
 
-        bool Remove(const char* file) override;
+        bool createDirectory(const char* path);
 
-        FileData* Read(const char* filename, int64_t size) const override;
+        bool remove(const char* filepath);
 
-        FileData* Read(const char* filename) const override;
+        FileData* read(const std::string& filename, int64_t size) const;
 
-        void Write(const char* filename, const void* data, int64_t size) const override;
+        FileData* read(const std::string& filename) const;
 
-        void Append(const char* filename, const void* data, int64_t size) const override;
+        void write(const std::string& filename, const void* data, int64_t size) const;
 
-        bool GetDirectoryItems(const char* directory, std::vector<std::string>& items) override;
+        void append(const std::string& filename, const void* data, int64_t size) const;
 
-        void SetSymlinksEnabled(bool enable) override;
+        bool getDirectoryItems(const char*, std::vector<std::string>& items);
 
-        bool AreSymlinksEnabled() const override;
+        void setSymlinksEnabled(bool enable);
 
-        std::vector<std::string>& GetRequirePath() override;
+        bool areSymlinksEnabled() const;
 
-        // std::vector<std::string>& GetCRequirePath() override;
+        std::vector<std::string>& getRequirePath();
 
-        void AllowMountingForPath(const std::string& path) override;
-
-        bool SetupWriteDirectory() override;
-
-        static const char* GetLastError(bool clear = false);
+        std::vector<std::string>& getCRequirePath();
 
       private:
         struct CommonPathMountInfo
@@ -112,34 +104,28 @@ namespace love::physfs
             MountPermissions permissions;
         };
 
-        bool MountCommonPathInternal(CommonPath path, const char* mountpoint,
-                                     MountPermissions permissions, bool appendToPath,
-                                     bool createDirectory);
-
-        static bool IsAppCommonPath(CommonPath path);
+        bool mountCommonPathInternal(CommonPath path, const char* mountPoint, MountPermissions permissions,
+                                     bool appendToPath, bool createDirectory);
 
         std::string currentDirectory;
-        std::string saveIdentity;
 
+        std::string saveIdentity;
         bool appendIdentityToPath;
 
-        std::string gameSource;
+        std::string source;
 
         bool fused;
         bool fusedSet;
 
         std::vector<std::string> requirePath;
-        // std::vector<std::string> cRequirePath
+        std::vector<std::string> cRequirePath;
 
-        std::vector<std::string> allowedMountPaths;
+        std::vector<std::string> allowedPaths;
 
-        std::map<std::string, StrongReference<Data>> mountedData;
+        std::map<std::string, StrongRef<Data>> mountedData;
 
-        std::array<std::string, CommonPath::PATH_MAX_ENUM> fullPaths;
-        std::array<CommonPathMountInfo, CommonPath::PATH_MAX_ENUM> commonPathMountInfo;
-
+        std::array<std::string, COMMONPATH_MAX_ENUM> fullPaths;
+        std::array<CommonPathMountInfo, COMMONPATH_MAX_ENUM> commonPathMountInfo;
         bool saveDirectoryNeedsMounting;
-
-        std::array<CommonPath, 0x02> appCommonPaths;
     };
-} // namespace love::physfs
+} // namespace love

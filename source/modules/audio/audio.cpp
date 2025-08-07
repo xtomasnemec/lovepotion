@@ -1,106 +1,122 @@
-#include <modules/audio/audio.hpp>
+#include "modules/audio/Audio.hpp"
+#include "modules/audio/Pool.hpp"
 
-using namespace love;
+#include "driver/audio/DigitalSound.hpp"
 
-Audio::Audio()
+namespace love
 {
-    DSP<Console::Which>::Instance().Initialize();
-
-    try
+    Audio::PoolThread::PoolThread(Pool* pool) : pool(pool), finish(false)
     {
-
-        this->pool = new AudioPool();
-    }
-    catch (love::Exception&)
-    {
-        throw;
+        this->threadName = "AudioPool";
     }
 
-    this->thread = new PoolThread(this->pool);
-    this->thread->Start();
-}
+    void Audio::PoolThread::run()
+    {
+        while (true)
+        {
+            if (this->finish)
+                return;
 
-Audio::~Audio()
-{
-    this->thread->SetFinish();
-    this->thread->Wait();
+            this->pool->update();
+            DigitalSound::getInstance().update();
+        }
+    }
 
-    delete this->thread;
-    delete this->pool;
-}
+    Audio::Audio() : Module(M_AUDIO, "love.audio"), pool(nullptr), poolThread(nullptr)
+    {
+        DigitalSound::getInstance().initialize();
 
-Source<Console::Which>* Audio::NewSource(Decoder* decoder) const
-{
-    return new Source<Console::Which>(this->pool, decoder);
-}
+        try
+        {
+            this->pool = new Pool();
+        }
+        catch (love::Exception&)
+        {
+            throw;
+        }
 
-Source<Console::Which>* Audio::NewSource(SoundData* soundData) const
-{
-    return new Source<Console::Which>(this->pool, soundData);
-}
+        this->poolThread = new PoolThread(this->pool);
+        this->poolThread->start();
+    }
 
-Source<Console::Which>* Audio::NewSource(int sampleRate, int bitDepth, int channels,
-                                         int buffers) const
-{
-    return new Source<Console::Which>(this->pool, sampleRate, bitDepth, channels, buffers);
-}
+    Audio::~Audio()
+    {
+        this->poolThread->setFinish();
+        this->poolThread->wait();
 
-void Audio::SetVolume(float volume)
-{
-    DSP<Console::Which>::Instance().SetMasterVolume(volume);
-}
+        DigitalSound::getInstance().deInitialize();
 
-float Audio::GetVolume() const
-{
-    return DSP<Console::Which>::Instance().GetMasterVolume();
-}
+        delete this->poolThread;
+        delete this->pool;
+    }
 
-int Audio::GetActiveSourceCount() const
-{
-    return this->pool->GetActiveSourceCount();
-}
+    Source* Audio::newSource(SoundData* soundData) const
+    {
+        return new Source(this->pool, soundData);
+    }
 
-int Audio::GetMaxSources() const
-{
-    return this->pool->GetMaxSources();
-}
+    Source* Audio::newSource(Decoder* decoder) const
+    {
+        return new Source(this->pool, decoder);
+    }
 
-bool Audio::Play(Source<Console::Which>* source)
-{
-    return source->Play();
-}
+    Source* Audio::newSource(int sampleRate, int bitDepth, int channels, int buffers) const
+    {
+        return new Source(this->pool, sampleRate, bitDepth, channels, buffers);
+    }
 
-bool Audio::Play(const std::vector<Source<Console::Which>*>& sources)
-{
-    return Source<Console::Which>::Play(sources);
-}
+    int Audio::getActiveSourceCount() const
+    {
+        return this->pool->getActiveSourceCount();
+    }
 
-void Audio::Stop(Source<Console::Which>* source)
-{
-    source->Stop();
-}
+    bool Audio::play(Source* source)
+    {
+        return source->play();
+    }
 
-void Audio::Stop(const std::vector<Source<Console::Which>*>& sources)
-{
-    Source<Console::Which>::Stop(sources);
-}
+    bool Audio::play(const std::vector<Source*>& sources)
+    {
+        return Source::play(sources);
+    }
 
-void Audio::Stop()
-{
-    Source<Console::Which>::Stop(this->pool);
-}
+    void Audio::stop()
+    {
+        Source::stop(this->pool);
+    }
 
-void Audio::Pause(Source<Console::Which>* source)
-{
-    source->Pause();
-}
+    void Audio::stop(Source* source)
+    {
+        source->stop();
+    }
 
-void Audio::Pause(const std::vector<Source<Console::Which>*>& sources)
-{
-    Source<Console::Which>::Pause(sources);
-}
+    void Audio::stop(const std::vector<Source*>& sources)
+    {
+        Source::stop(sources);
+    }
 
-std::vector<Source<Console::Which>*> Audio::Pause()
-{
-    return Source<Console::Which>::Pause(this->pool);
-}
+    void Audio::pause(Source* source)
+    {
+        source->pause();
+    }
+
+    void Audio::pause(const std::vector<Source*>& sources)
+    {
+        Source::pause(sources);
+    }
+
+    std::vector<Source*> Audio::pause()
+    {
+        return Source::pause(this->pool);
+    }
+
+    void Audio::setVolume(float volume)
+    {
+        DigitalSound::getInstance().setMasterVolume(volume);
+    }
+
+    float Audio::getVolume() const
+    {
+        return DigitalSound::getInstance().getMasterVolume();
+    }
+} // namespace love

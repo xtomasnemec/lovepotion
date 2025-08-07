@@ -1,7 +1,6 @@
 #pragma once
 
-#include <common/screen_ext.hpp>
-
+#include <stdint.h>
 #include <string_view>
 
 namespace love
@@ -13,41 +12,33 @@ namespace love
         {
             CTR,
             HAC,
-            CAFE,
-            ALL
+            CAFE
         };
 
         static constexpr std::string_view Name = __CONSOLE__;
 
-        static constexpr Platform Which = (Name == "3DS") ? CTR : (Name == "Switch") ? HAC : CAFE;
+        static constexpr Platform Current = (Name == "3ds") ? CTR : (Name == "switch") ? HAC : CAFE;
 
-        static constexpr bool Is(Console::Platform platform)
+        static constexpr bool is(Platform platform)
         {
-            return Which == platform;
+            return Current == platform;
         }
 
-        static constexpr bool IsBigEndian()
+        static void setMainCoreId(uint32_t id)
         {
-            return Which == CAFE;
-        }
-
-        static void SetMainCore(uint32_t id)
-        {
-            if (Console::coreIdSet)
+            if (Console::mainCoreIdSet)
                 return;
 
-            Console::coreId    = id;
-            Console::coreIdSet = true;
+            Console::mainCoreId    = id;
+            Console::mainCoreIdSet = true;
         }
 
-        static uint32_t GetMainCoreId()
+        static bool isMainCoreId(uint32_t id)
         {
-            return Console::coreId;
+            return Console::mainCoreId == id;
         }
 
-        static uint32_t coreId;
-        static bool coreIdSet;
-
-        Console() = delete;
+        static uint32_t mainCoreId;
+        static bool mainCoreIdSet;
     };
 } // namespace love

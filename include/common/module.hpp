@@ -1,19 +1,18 @@
 #pragma once
 
-#include <common/exception.hpp>
-#include <common/object.hpp>
-
-#include <map>
+#include "common/Exception.hpp"
+#include "common/Object.hpp"
 
 namespace love
 {
     class Module : public Object
     {
       public:
-        static love::Type type;
+        static Type type;
 
         enum ModuleType
         {
+            M_UNKNOWN = -1, // Use this for modules outside of LOVE's source code.
             M_AUDIO,
             M_DATA,
             M_EVENT,
@@ -24,35 +23,47 @@ namespace love
             M_JOYSTICK,
             M_KEYBOARD,
             M_MATH,
+            M_MOUSE,
             M_PHYSICS,
-            M_SYSTEM,
             M_SENSOR,
             M_SOUND,
+            M_SYSTEM,
             M_THREAD,
             M_TIMER,
             M_TOUCH,
-            M_WINDOW,
             M_VIDEO,
+            M_WINDOW,
             M_MAX_ENUM
         };
 
+        Module(ModuleType type, const char* name);
+
         virtual ~Module();
 
-        virtual ModuleType GetModuleType() const = 0;
+        ModuleType getModuleType() const
+        {
+            return this->moduleType;
+        }
 
-        virtual const char* GetName() const = 0;
+        const char* getName() const
+        {
+            return this->name.c_str();
+        }
 
-        static void RegisterInstance(Module* instance);
-
-        Module* GetInstance(const std::string& name);
+        static Module* getInstance(const std::string& name);
 
         template<typename T>
-        static T* GetInstance(ModuleType type)
+        static T* getInstance(ModuleType type)
         {
-            return (T*)instances[type];
+            return type != M_UNKNOWN ? (T*)instances[type] : nullptr;
         }
 
       private:
+        static void registerInstance(Module* instance);
+
+        ModuleType moduleType;
+        std::string name;
+
         static Module* instances[M_MAX_ENUM];
     };
 } // namespace love

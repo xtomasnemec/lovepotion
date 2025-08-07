@@ -1,69 +1,83 @@
-#include <modules/joystick/wrap_joystickmodule.hpp>
-#include <objects/joystick/wrap_joystick.hpp>
+#include "modules/joystick/wrap_JoystickModule.hpp"
+#include "modules/joystick/wrap_Joystick.hpp"
 
 using namespace love;
-using JoystickModule = love::JoystickModule<Console::Which>;
 
-#define instance() (Module::GetInstance<::JoystickModule>(Module::M_JOYSTICK))
+#define MODULE_INSTANCE() Module::getInstance<JoystickModule>(Module::M_JOYSTICK)
 
-int Wrap_JoystickModule::GetJoysticks(lua_State* L)
+int Wrap_JoystickModule::getJoysticks(lua_State* L)
 {
-    int count = instance()->GetJoystickCount();
-
+    int count = MODULE_INSTANCE()->getJoystickCount();
     lua_createtable(L, count, 0);
+
     for (int index = 0; index < count; index++)
     {
-        Joystick<Console::Which>* joystick = instance()->GetJoystick(index);
-        luax::PushType(L, joystick);
+        auto* joystick = MODULE_INSTANCE()->getJoystick(index);
+        luax_pushtype(L, joystick);
         lua_rawseti(L, -2, index + 1);
     }
 
     return 1;
 }
 
-int Wrap_JoystickModule::GetIndex(lua_State* L)
+int Wrap_JoystickModule::getIndex(lua_State* L)
 {
-    return 0;
+    auto* joystick = luax_checkjoystick(L, 1);
+    int index      = MODULE_INSTANCE()->getIndex(joystick);
+
+    if (index >= 0)
+        lua_pushinteger(L, index);
+    else
+        lua_pushnil(L);
+
+    return 1;
 }
 
-int Wrap_JoystickModule::GetJoystickCount(lua_State* L)
+int Wrap_JoystickModule::getJoystickCount(lua_State* L)
 {
-    lua_pushinteger(L, instance()->GetJoystickCount());
+    lua_pushinteger(L, MODULE_INSTANCE()->getJoystickCount());
 
+    return 1;
+}
+
+int Wrap_JoystickModule::loadGamepadMappings(lua_State* L)
+{
+    // Stub implementation for Wii U - gamepad mappings are built-in
+    // The filename parameter is ignored since Wii U doesn't need external mappings
+    lua_pushinteger(L, 0); // Return 0 mappings loaded (success but no external mappings needed)
     return 1;
 }
 
 // clang-format off
 static constexpr luaL_Reg functions[] =
 {
-    { "getJoysticks",     Wrap_JoystickModule::GetJoysticks     },
-    { "getJoystickCount", Wrap_JoystickModule::GetJoystickCount },
-    { "getIndex",         Wrap_JoystickModule::GetIndex         }
+    { "getJoysticks",           Wrap_JoystickModule::getJoysticks           },
+    { "getIndex",               Wrap_JoystickModule::getIndex               },
+    { "getJoystickCount",       Wrap_JoystickModule::getJoystickCount       },
+    { "loadGamepadMappings",    Wrap_JoystickModule::loadGamepadMappings    }
 };
 
 static constexpr lua_CFunction types[] =
 {
-    Wrap_Joystick::Register,
-    nullptr
+    love::open_joystick
 };
 // clang-format on
 
-int Wrap_JoystickModule::Register(lua_State* L)
+int Wrap_JoystickModule::open(lua_State* L)
 {
-    auto* instance = instance();
+    auto* module_instance = Module::getInstance<JoystickModule>(Module::M_JOYSTICK);
 
-    if (instance == nullptr)
-        luax::CatchException(L, [&]() { instance = new ::JoystickModule(); });
+    if (module_instance == nullptr)
+        luax_catchexcept(L, [&] { module_instance = new JoystickModule(); });
     else
-        instance->Retain();
+        module_instance->retain();
 
-    WrappedModule wrappedModule;
+    WrappedModule module {};
+    module.instance  = module_instance;
+    module.name      = "joystick";
+    module.type      = &Module::type;
+    module.functions = functions;
+    module.types     = types;
 
-    wrappedModule.instance  = instance;
-    wrappedModule.name      = "joystick";
-    wrappedModule.functions = functions;
-    wrappedModule.type      = &Module::type;
-    wrappedModule.types     = types;
-
-    return luax::RegisterModule(L, wrappedModule);
+    return luax_register_module(L, module);
 }

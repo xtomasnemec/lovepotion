@@ -1,23 +1,25 @@
-#include <modules/touch/touch.hpp>
-#include <modules/touch/wrap_touch.hpp>
+#include "modules/touch/wrap_Touch.hpp"
 
 using namespace love;
 
-#define instance() (Module::GetInstance<Touch>(Module::M_TOUCH))
+#define instance() Module::getInstance<Touch>(Module::M_TOUCH)
 
-int64_t Wrap_Touch::CheckTouchID(lua_State* L, int index)
+namespace love
 {
-    if (!lua_islightuserdata(L, index))
-        return luax::TypeError(L, index, "touch id");
+    int64_t luax_checktouchid(lua_State* L, int index)
+    {
+        if (!lua_islightuserdata(L, index))
+            luax_typeerror(L, index, "touch id");
 
-    return (int64_t)(intptr_t)lua_touserdata(L, index);
-}
+        return (int64_t)(intptr_t)lua_touserdata(L, index);
+    }
+} // namespace love
 
-int Wrap_Touch::GetTouches(lua_State* L)
+int Wrap_Touch::getTouches(lua_State* L)
 {
-    const auto& touches = instance()->GetTouches();
+    const auto& touches = instance()->getTouches();
 
-    lua_createtable(L, (int)touches.size(), 0);
+    lua_createtable(L, touches.size(), 0);
 
     for (size_t index = 0; index < touches.size(); index++)
     {
@@ -28,27 +30,27 @@ int Wrap_Touch::GetTouches(lua_State* L)
     return 1;
 }
 
-int Wrap_Touch::GetPosition(lua_State* L)
+int Wrap_Touch::getPosition(lua_State* L)
 {
-    auto id = Wrap_Touch::CheckTouchID(L, 1);
+    int64_t id = luax_checktouchid(L, 1);
 
-    Finger touch {};
-    luax::CatchException(L, [&]() { touch = instance()->GetTouch(id); });
+    Finger finger {};
+    luax_catchexcept(L, [&] { finger = instance()->getTouch(id); });
 
-    lua_pushnumber(L, touch.x);
-    lua_pushnumber(L, touch.y);
+    lua_pushnumber(L, finger.x);
+    lua_pushnumber(L, finger.y);
 
     return 2;
 }
 
-int Wrap_Touch::GetPressure(lua_State* L)
+int Wrap_Touch::getPressure(lua_State* L)
 {
-    auto id = Wrap_Touch::CheckTouchID(L, 1);
+    int64_t id = luax_checktouchid(L, 1);
 
-    Finger touch {};
-    luax::CatchException(L, [&]() { touch = instance()->GetTouch(id); });
+    Finger finger {};
+    luax_catchexcept(L, [&] { finger = instance()->getTouch(id); });
 
-    lua_pushnumber(L, touch.pressure);
+    lua_pushnumber(L, finger.pressure);
 
     return 1;
 }
@@ -56,28 +58,26 @@ int Wrap_Touch::GetPressure(lua_State* L)
 // clang-format off
 static constexpr luaL_Reg functions[] =
 {
-    { "getPosition", Wrap_Touch::GetPosition },
-    { "getPressure", Wrap_Touch::GetPressure },
-    { "getTouches",  Wrap_Touch::GetTouches  }
+    { "getTouches",  Wrap_Touch::getTouches  },
+    { "getPosition", Wrap_Touch::getPosition },
+    { "getPressure", Wrap_Touch::getPressure }
 };
 // clang-format on
 
-int Wrap_Touch::Register(lua_State* L)
+int Wrap_Touch::open(lua_State* L)
 {
-    Touch* instance = instance();
+    auto* instance = instance();
 
     if (instance == nullptr)
-        luax::CatchException(L, [&]() { instance = new Touch(); });
+        luax_catchexcept(L, [&] { instance = new Touch(); });
     else
-        instance->Retain();
+        instance->retain();
 
-    WrappedModule wrappedModule;
+    WrappedModule module {};
+    module.instance  = instance;
+    module.name      = "touch";
+    module.type      = &Module::type;
+    module.functions = functions;
 
-    wrappedModule.instance  = instance;
-    wrappedModule.name      = "touch";
-    wrappedModule.type      = &Module::type;
-    wrappedModule.functions = functions;
-    wrappedModule.types     = nullptr;
-
-    return luax::RegisterModule(L, wrappedModule);
+    return luax_register_module(L, module);
 }

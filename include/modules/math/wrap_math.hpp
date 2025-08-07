@@ -1,28 +1,22 @@
 #pragma once
 
-#include <common/luax.hpp>
+#include "common/luax.hpp"
 
-namespace Wrap_Math
+namespace Wrap_MathModule
 {
-    int GetRandomGenerator(lua_State* L);
-
-    int NewRandomGenerator(lua_State* L);
-
-    int NewBezierCurve(lua_State* L);
-
-    int NewTransform(lua_State* L);
-
-    int Triangulate(lua_State* L);
-
-    int IsConvex(lua_State* L);
-
-    int GammaToLinear(lua_State* L);
-
-    int LinearToGamma(lua_State* L);
-
-    int PerlinNoise(lua_State* L);
-
-    int SimplexNoise(lua_State* L);
-
-    int Register(lua_State* L);
-} // namespace Wrap_Math
+    int random(lua_State* L);
+    int randomSeed(lua_State* L);
+    int setRandomSeed(lua_State* L);
+    int getRandomSeed(lua_State* L);
+    int newRandomGenerator(lua_State* L);
+    int noise(lua_State* L);
+    int gammaToLinear(lua_State* L);
+    int linearToGamma(lua_State* L);
+    int isConvex(lua_State* L);
+    int triangulate(lua_State* L);
+    int colorFromBytes(lua_State* L);
+    int colorToBytes(lua_State* L);
+    int compress(lua_State* L);
+    int decompress(lua_State* L);
+    int open(lua_State* L);
+}

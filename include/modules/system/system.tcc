@@ -1,20 +1,18 @@
 #pragma once
 
-#include <common/console.hpp>
-#include <common/module.hpp>
-
-#include <utilities/bidirectionalmap/bidirectionalmap.hpp>
+#include "common/Map.hpp"
+#include "common/Module.hpp"
 
 namespace love
 {
-    template<Console::Platform T = Console::ALL>
-    class System : public Module
+    class SystemBase : public Module
     {
       public:
         enum PowerState
         {
             POWER_UNKNOWN,
             POWER_BATTERY,
+            POWER_NO_BATTERY,
             POWER_CHARGING,
             POWER_CHARGED,
             POWER_MAX_ENUM
@@ -28,58 +26,57 @@ namespace love
             NETWORK_MAX_ENUM
         };
 
-        enum SystemTheme
-        {
-            THEME_LIGHT,
-            THEME_DARK,
-            THEME_MAX_ENUM
-        };
-
-        System() : info {}
+        SystemBase() : Module(M_SYSTEM, "love.system")
         {}
 
-        ModuleType GetModuleType() const override
-        {
-            return M_SYSTEM;
-        }
+        virtual ~SystemBase()
+        {}
 
-        const char* GetName() const override
-        {
-            return "love.system";
-        }
-
-        static const char* GetOS()
+        static const char* getOS()
         {
             return __OS__;
         }
 
-        // clang-format off
-        static constexpr BidirectionalMap powerStates = {
-            "unknown",  System::PowerState::POWER_UNKNOWN,
-            "battery",  System::PowerState::POWER_BATTERY,
-            "charged",  System::PowerState::POWER_CHARGED,
-            "charging", System::PowerState::POWER_CHARGING
-        };
-
-        static constexpr BidirectionalMap networkStates = {
-            "unknown",      System::NetworkState::NETWORK_UNKNOWN,
-            "connected",    System::NetworkState::NETWORK_CONNECTED,
-            "disconnected", System::NetworkState::NETWORK_DISCONNECTED
-        };
-        // clang-format on
-
-      protected:
-        struct
+        void setClipboardText(const std::string& text)
         {
-            size_t processors;
-            std::string model;
-            std::string locale;
-            std::string version;
+            this->clipboard = text;
+        }
+
+        const std::string& getClipboardText() const
+        {
+            return this->clipboard;
+        }
+
+        struct FriendInfo
+        {
             std::string username;
             std::string friendCode;
-            std::string colorTheme;
-        } info;
+        };
+
+        struct ProductInfo
+        {
+            std::string version;
+            std::string model;
+            std::string region;
+        };
+
+        // clang-format off
+        STRINGMAP_DECLARE(PowerStates, PowerState,
+            { "unknown",   POWER_UNKNOWN    },
+            { "battery",   POWER_BATTERY    },
+            { "nobattery", POWER_NO_BATTERY },
+            { "charging",  POWER_CHARGING   },
+            { "charged",   POWER_CHARGED    }
+        );
+
+        STRINGMAP_DECLARE(NetworkStates, NetworkState,
+            { "unknown",      NETWORK_UNKNOWN      },
+            { "disconnected", NETWORK_DISCONNECTED },
+            { "connected",    NETWORK_CONNECTED    }
+        );
+        // clang-format on
 
       private:
+        std::string clipboard;
     };
 } // namespace love

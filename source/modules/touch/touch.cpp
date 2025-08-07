@@ -1,58 +1,61 @@
-#include <modules/touch/touch.hpp>
+#include "modules/touch/Touch.hpp"
 
 #include <algorithm>
 
-using namespace love;
-
-const std::vector<Finger>& Touch::GetTouches() const
+namespace love
 {
-    return this->touches;
-}
+    Touch::Touch() : Module(Module::M_TOUCH, "love.touch")
+    {}
 
-const Finger& Touch::GetTouch(int64_t id) const
-{
-    for (const auto& touch : this->touches)
+    const std::vector<Finger>& Touch::getTouches()
     {
-        if (touch.id == id)
-            return touch;
+        return this->touches;
     }
 
-    throw love::Exception("Invalid active touch ID: %d.", id);
-}
-
-void Touch::OnEvent(SubEventType type, const Finger& info)
-{
-    auto compare = [&](const Finger& touch) -> bool { return touch.id == info.id; };
-
-    switch (type)
+    const Finger& Touch::getTouch(int64_t id)
     {
-        case SUBTYPE_TOUCHPRESS:
+        for (const auto& touch : this->touches)
         {
-            const auto iter = std::remove_if(this->touches.begin(), this->touches.end(), compare);
-
-            this->touches.erase(iter, this->touches.end());
-            this->touches.push_back(info);
-
-            break;
+            if (touch.id == id)
+                return touch;
         }
-        case SUBTYPE_TOUCHMOVED:
+
+        throw love::Exception("Invalid active touch ID: {:d}", id);
+    }
+
+    void Touch::onEvent(SubEventType type, const Finger& info)
+    {
+        auto compare = [&info](const Finger& touch) -> bool { return touch.id == info.id; };
+
+        switch (type)
         {
-            for (Finger& touch : this->touches)
+            case SUBTYPE_TOUCHPRESS:
             {
-                if (touch.id == info.id)
-                    touch = info;
+                auto it = std::remove_if(this->touches.begin(), this->touches.end(), compare);
+                this->touches.erase(it, this->touches.end());
+
+                this->touches.push_back(info);
+
+                break;
             }
+            case SUBTYPE_TOUCHMOVED:
+            {
+                for (auto& touch : this->touches)
+                {
+                    if (touch.id == info.id)
+                        touch = info;
+                }
+                break;
+            }
+            case SUBTYPE_TOUCHRELEASE:
+            {
+                auto it = std::remove_if(this->touches.begin(), this->touches.end(), compare);
+                this->touches.erase(it, this->touches.end());
 
-            break;
+                break;
+            }
+            default:
+                break;
         }
-        case SUBTYPE_TOUCHRELEASE:
-        {
-            const auto iter = std::remove_if(this->touches.begin(), this->touches.end(), compare);
-            this->touches.erase(iter, this->touches.end());
-
-            break;
-        }
-        default:
-            break;
     }
-}
+} // namespace love

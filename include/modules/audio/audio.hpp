@@ -1,12 +1,9 @@
 #pragma once
 
-#include <common/console.hpp>
-#include <common/module.hpp>
+#include "common/Module.hpp"
 
-#include <objects/source_ext.hpp>
-
-#include <utilities/pool/poolthread.hpp>
-#include <utilities/pool/sources.hpp>
+#include "modules/audio/Source.hpp"
+#include "modules/thread/Threadable.hpp"
 
 namespace love
 {
@@ -17,49 +14,57 @@ namespace love
 
         ~Audio();
 
-        ModuleType GetModuleType() const override
-        {
-            return M_AUDIO;
-        }
+        Source* newSource(SoundData* soundData) const;
 
-        const char* GetName() const override
-        {
-            return "love.audio";
-        }
+        Source* newSource(Decoder* decoder) const;
 
-        Source<Console::Which>* NewSource(Decoder* decoder) const;
+        Source* newSource(int sampleRate, int bitDepth, int channels, int buffers) const;
 
-        Source<Console::Which>* NewSource(SoundData* soundData) const;
+        int getActiveSourceCount() const;
 
-        Source<Console::Which>* NewSource(int sampleRate, int bitDepth, int channels,
-                                          int buffers) const;
+        int getMaxSources() const;
 
-        int GetActiveSourceCount() const;
+        bool play(Source* source);
 
-        int GetMaxSources() const;
+        void stop();
 
-        void SetVolume(float volume);
+        void stop(Source* source);
 
-        float GetVolume() const;
+        void pause(Source* source);
 
-        bool Play(Source<Console::Which>* source);
+        void setVolume(float volume);
 
-        bool Play(const std::vector<Source<Console::Which>*>& sources);
+        float getVolume() const;
 
-        void Stop(Source<Console::Which>* source);
+        static bool play(const std::vector<Source*>& sources);
 
-        void Stop(const std::vector<Source<Console::Which>*>& sources);
+        static void stop(const std::vector<Source*>& sources);
 
-        void Stop();
+        static void pause(const std::vector<Source*>& sources);
 
-        void Pause(Source<Console::Which>* source);
-
-        void Pause(const std::vector<Source<Console::Which>*>& sources);
-
-        std::vector<Source<Console::Which>*> Pause();
+        std::vector<Source*> pause();
 
       private:
-        AudioPool* pool;
-        PoolThread* thread;
+        Pool* pool;
+
+        class PoolThread : public Threadable
+        {
+          public:
+            PoolThread(Pool* pool);
+
+            void setFinish()
+            {
+                this->finish = true;
+            }
+
+            void run();
+
+          protected:
+            Pool* pool;
+            std::atomic<bool> finish;
+            std::recursive_mutex mutex;
+        };
+
+        PoolThread* poolThread;
     };
 } // namespace love

@@ -1,0 +1,152 @@
+# Dockerfile 
+FROM devkitpro/devkitppc:latest
+
+# Build type argument (Debug or Release)
+ARG BUILD_TYPE=Debug
+
+#install dependencies
+RUN echo "=== Installing dependencies ===" && \
+ apt-get update && apt-get upgrade -y && \
+ apt-get install -y git build-essential python3 python3-pip cmake git dos2unix wget python3-setuptools python3-mako bison flex meson && \
+ dkp-pacman -S --needed --noconfirm \
+    wut-tools \
+    wut \
+    ppc-zlib \
+    ppc-libpng \
+    ppc-libjpeg-turbo \
+    ppc-freetype \
+    ppc-libogg \
+    ppc-libvorbis \
+    ppc-libvorbisidec \
+    ppc-bzip2
+
+#BOOTSOUND NOT WORKING
+
+# Install OpenJDK for wav2btsnd.jar
+#RUN apt-get update && apt-get install -y openjdk-11-jre-headless
+
+# Download wav2btsnd.jar
+#RUN mkdir -p /opt/wav2btsnd && \
+ #   wget -O /opt/wav2btsnd/wav2btsnd.jar https://bitbucket.org/timogus/wav2btsnd/raw/master/wav2btsnd.jar
+# Convert bootSound.wav to bootSound.btsnd if present
+#RUN if [ -f /project/platform/cafe/bootSound.wav ]; then \
+ #   echo "=== Converting bootSound.wav to bootSound.btsnd using wav2btsnd.jar ===" && \
+  #  java -jar /opt/wav2btsnd/wav2btsnd.jar /project/platform/cafe/bootSound.wav /project/platform/cafe/bootSound.btsnd; \
+   # else echo "No bootSound.wav found, skipping btsnd conversion."; fi
+
+# Download and install CafeGLSL static compiler (Linux .elf)
+RUN echo "=== Installing CafeGLSL static shader compiler ===" && \
+    mkdir -p /opt/CafeGLSL && \
+    cd /opt/CafeGLSL && \
+    wget -O glslcompiler.elf https://github.com/Exzap/CafeGLSL/releases/download/v0.2.0/glslcompiler.elf && \
+    wget -O CafeGLSLCompiler.h https://raw.githubusercontent.com/Exzap/CafeGLSL/e3e385c700e6e70dd2d9d6cd015162991084df6b/cafecompiler/CafeGLSLCompiler.h && \
+    chmod +x glslcompiler.elf && \
+    cp glslcompiler.elf /usr/local/bin/ && \
+    cp CafeGLSLCompiler.h /opt/devkitpro/wut/include/ && \
+    echo "=== CafeGLSL static compiler installation completed ===" && \
+    ls -la && \
+    which glslcompiler.elf || echo "glslcompiler.elf not in PATH but copied to /usr/local/bin/"
+
+WORKDIR /project
+
+# Copy project
+COPY . .
+
+# Convert line endings and skip luasocket patches (luasocket is disabled for Wii U)
+RUN find /project -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' | xargs dos2unix || true
+
+# Create game.zip before build (needed for fusing with executable)
+RUN echo "=== Creating game.zip from game folder ===" && \
+    mkdir -p /project/build && \
+    cd /project/game && \
+    zip -r /project/build/game.love . && \
+    echo "=== game.love created successfully ===" && \
+    ls -la /project/build/game.love
+
+# Compile all shaders statically using CafeGLSL
+RUN echo "=== Compiling shaders with CafeGLSL static compiler ===" && \
+    mkdir -p /project/platform/cafe/content/shaders/game && \
+    cd /project && \
+    echo "=== Converting .fs shaders to GLSL and compiling to .gsh ===" && \
+    # Create a default vertex shader for LÖVE 2D \
+    echo "#version 330 core" > /tmp/default_vs.glsl && \
+    echo "layout(location = 0) in vec4 VertexPosition;" >> /tmp/default_vs.glsl && \
+    echo "layout(location = 1) in vec4 VertexTexCoord;" >> /tmp/default_vs.glsl && \
+    echo "layout(location = 2) in vec4 VertexColor;" >> /tmp/default_vs.glsl && \
+    echo "uniform mat4 TransformProjectionMatrix;" >> /tmp/default_vs.glsl && \
+    echo "varying vec4 VaryingTexCoord;" >> /tmp/default_vs.glsl && \
+    echo "varying vec4 VaryingColor;" >> /tmp/default_vs.glsl && \
+    echo "void main() {" >> /tmp/default_vs.glsl && \
+    echo "    VaryingTexCoord = VertexTexCoord;" >> /tmp/default_vs.glsl && \
+    echo "    VaryingColor = VertexColor;" >> /tmp/default_vs.glsl && \
+    echo "    gl_Position = TransformProjectionMatrix * VertexPosition;" >> /tmp/default_vs.glsl && \
+    echo "}" >> /tmp/default_vs.glsl && \
+    find game/resources/shaders -name "*.fs" | while read shader; do \
+        name=$(basename "$shader" .fs); \
+        echo "Processing shader: $name"; \
+        # Convert LÖVE .fs to GLSL fragment shader \
+        echo "#version 330 core" > "/tmp/${name}_fs.glsl"; \
+        echo "uniform sampler2D MainTexture;" >> "/tmp/${name}_fs.glsl"; \
+        echo "uniform float time;" >> "/tmp/${name}_fs.glsl"; \
+        echo "uniform vec2 love_ScreenSize;" >> "/tmp/${name}_fs.glsl"; \
+        echo "in vec4 VaryingTexCoord;" >> "/tmp/${name}_fs.glsl"; \
+        echo "in vec4 VaryingColor;" >> "/tmp/${name}_fs.glsl"; \
+        echo "out vec4 fragColor;" >> "/tmp/${name}_fs.glsl"; \
+        echo "void main() {" >> "/tmp/${name}_fs.glsl"; \
+        echo "    fragColor = texture(MainTexture, VaryingTexCoord.xy) * VaryingColor;" >> "/tmp/${name}_fs.glsl"; \
+        echo "}" >> "/tmp/${name}_fs.glsl"; \
+        # Compile to .gsh using CafeGLSL with default vertex shader \
+        /opt/CafeGLSL/glslcompiler.elf -vs "/tmp/default_vs.glsl" -ps "/tmp/${name}_fs.glsl" -o "/project/platform/cafe/content/shaders/game/${name}.gsh" && \
+        echo "Successfully compiled ${name}.gsh" || echo "Failed to compile ${name}"; \
+    done && \
+    echo "=== Shader compilation completed ===" && \
+    ls -la /project/platform/cafe/content/shaders/game/ || echo "No game shaders directory found"
+
+# Build
+RUN mkdir -p build && cd build && \
+    ls -lh /project/platform/cafe/ && \
+    echo "=== Starting CMake configuration ===" && \
+    echo "=== Pre-compiled shaders available ===" && \
+    ls -la /project/platform/cafe/content/shaders/game/ 2>/dev/null || echo "No pre-compiled shaders found" && \
+    cmake .. -DNINTENDO_WIIU=ON -DUSE_CAFEGLSL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/WiiU.cmake -G Ninja && \
+    echo "=== CMake configuration completed ===" && \
+    echo "=== Starting ninja build ===" && \
+    ninja || (echo "=== Ninja failed, showing build directory contents ===" && ls -la && exit 1) && \
+    echo "=== Ninja build completed ===" && \
+    echo "=== BUILD OUTPUT DEBUG ===" && \
+    ls -la && \
+    echo "=== FUSING GAME DATA INTO WUHB ===" && \
+    if [ -f lovepotion.wuhb ] && [ -f /project/build/game.love ]; then \
+        cat lovepotion.wuhb /project/build/game.love > balatro.wuhb && \
+        echo "=== GAME FUSED SUCCESSFULLY ===" && \
+        ls -la balatro.wuhb; \
+    else \
+        echo "=== FUSING FAILED - Missing files ==="; \
+        echo "lovepotion.wuhb exists: $(test -f lovepotion.wuhb && echo yes || echo no)"; \
+        echo "game.love exists: $(test -f /project/build/game.love && echo yes || echo no)"; \
+    fi && \
+    echo "=== FIND ALL RPX/WUHB/ELF FILES IN PROJECT ===" && \
+    find /project -name "*.rpx" -o -name "*.wuhb" -o -name "*.elf" | head -20 && \
+    echo "=== FIND ALL EXECUTABLE FILES ===" && \
+    find /project -name "*lovepotion*" -type f | head -20 && \
+    echo "=== COPYING FILES TO OUTPUT ===" && \
+    mkdir -p /output && \
+    echo "Current working directory: $(pwd)" && \
+    echo "Files in current directory:" && \
+    ls -la && \
+    if [ -f balatro.wuhb ]; then \
+        echo "Found balatro.wuhb, copying to /output/" && \
+        cp -v balatro.wuhb /output/; \
+    else \
+        echo "balatro.wuhb not found in build directory"; \
+    fi && \
+    echo "=== COPYING ALL BUILD ARTIFACTS ===" && \
+    cp -v lovepotion.elf /output/ 2>/dev/null || echo "lovepotion.elf not found" && \
+    cp -v lovepotion.rpx /output/ 2>/dev/null || echo "lovepotion.rpx not found" && \
+    cp -v lovepotion.wuhb /output/ 2>/dev/null || echo "lovepotion.wuhb not found" && \
+    cp -v game.love /output/ 2>/dev/null || echo "game.love not found" && \
+    echo "=== OUTPUT DIRECTORY CONTENTS ===" && \
+    ls -la /output/
+
+# Export output directory
+VOLUME ["/output"]

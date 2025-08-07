@@ -1,48 +1,29 @@
-#include <modules/sensor/sensor.hpp>
+#include "modules/sensor/Sensor.hpp"
+#include "common/Exception.hpp"
 
-using namespace love;
-
-Sensor::Sensor() : sensors()
-{}
-
-bool Sensor::HasSensor(SensorType type)
+namespace love
 {
-    return false;
-}
-
-bool Sensor::IsEnabled(SensorType type)
-{
-    return this->sensors[type];
-}
-
-void Sensor::SetEnabled(SensorType type, bool enable)
-{
-    if (this->sensors[type] && !enable)
-        this->sensors[type] = nullptr;
-    else if (this->sensors[type] == nullptr && enable)
+    void Sensor::setEnabled(SensorType type, bool)
     {
-        auto name = Sensor::sensorTypes.ReverseFind(type);
-        throw love::Exception("Could not open \"%s\" sensor", *name);
-    }
-}
+        std::string_view name;
+        Sensor::getConstant(type, name);
 
-std::array<float, 3> Sensor::GetData(SensorType type)
-{
-    if (this->sensors[type] == nullptr)
-    {
-        auto name = Sensor::sensorTypes.ReverseFind(type);
-        throw love::Exception("\"%s\" sensor is not enabled", *name);
+        throw love::Exception("Device sensor \"{}\" does not exist.", name);
     }
 
-    return { 0.0f, 0.0f, 0.0f };
-}
+    std::vector<float> Sensor::getData(SensorType type) const
+    {
+        std::string_view name;
+        Sensor::getConstant(type, name);
 
-const char* Sensor::GetSensorName(SensorType type)
-{
-    auto name = Sensor::sensorTypes.ReverseFind(type);
+        throw love::Exception("Device sensor \"{}\" does not exist.", name);
+    }
 
-    if (this->sensors[type] == nullptr)
-        throw love::Exception("\"%s\" sensor is not enabled", *name);
+    std::string_view Sensor::getSensorName(SensorType type) const
+    {
+        std::string_view name;
+        Sensor::getConstant(type, name);
 
-    return *name;
-}
+        throw love::Exception("Device sensor \"{}\" does not exist.", name);
+    }
+} // namespace love

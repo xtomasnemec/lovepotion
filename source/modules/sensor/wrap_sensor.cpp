@@ -1,69 +1,67 @@
-#include <modules/sensor/wrap_sensor.hpp>
+#include "modules/sensor/wrap_Sensor.hpp"
 
 using namespace love;
 
-#define instance() (Module::GetInstance<Sensor>(Module::M_SENSOR))
+#define instance() Module::getInstance<Sensor>(Module::M_SENSOR)
 
-Sensor::SensorType Wrap_Sensor::CheckSensorType(lua_State* L, int index)
+static Sensor::SensorType luax_checksensortype(lua_State* L, int index)
 {
-    const char* typeName = luaL_checkstring(L, index);
-    std::optional<Sensor::SensorType> type;
+    const char* name = luaL_checkstring(L, index);
+    auto type        = Sensor::SENSOR_MAX_ENUM;
 
-    if (!(type = Sensor::sensorTypes.Find(typeName)))
-        luax::EnumError(L, "sensor mode", Sensor::sensorTypes, typeName);
+    if (!Sensor::getConstant(name, type))
+        luax_enumerror(L, "sensor mode", Sensor::SensorTypes, name);
 
-    return *type;
+    return type;
 }
 
-int Wrap_Sensor::HasSensor(lua_State* L)
+int Wrap_Sensor::hasSensor(lua_State* L)
 {
-    auto type = Wrap_Sensor::CheckSensorType(L, 1);
+    auto type = luax_checksensortype(L, 1);
 
-    luax::CatchException(L, [&]() { instance()->HasSensor(type); });
+    luax_pushboolean(L, instance()->hasSensor(type));
 
     return 1;
 }
 
-int Wrap_Sensor::IsEnabled(lua_State* L)
+int Wrap_Sensor::isEnabled(lua_State* L)
 {
-    auto type = Wrap_Sensor::CheckSensorType(L, 1);
-
-    luax::PushBoolean(L, instance()->IsEnabled(type));
+    luax_pushboolean(L, instance()->isEnabled());
 
     return 1;
 }
 
-int Wrap_Sensor::SetEnabled(lua_State* L)
+int Wrap_Sensor::setEnabled(lua_State* L)
 {
-    auto type    = Wrap_Sensor::CheckSensorType(L, 1);
-    auto enabled = luax::CheckBoolean(L, 2);
+    auto type   = luax_checksensortype(L, 1);
+    bool enable = luax_toboolean(L, 2);
 
-    luax::CatchException(L, [&]() { instance()->SetEnabled(type, enabled); });
+    luax_catchexcept(L, [&] { instance()->setEnabled(type, enable); });
 
     return 0;
 }
 
-int Wrap_Sensor::GetData(lua_State* L)
+int Wrap_Sensor::getData(lua_State* L)
 {
-    auto type = Wrap_Sensor::CheckSensorType(L, 1);
-    std::array<float, 3> data;
+    auto type = luax_checksensortype(L, 1);
+    std::vector<float> data;
 
-    luax::CatchException(L, [&]() { data = instance()->GetData(type); });
+    luax_catchexcept(L, [&] { data = instance()->getData(type); });
 
-    for (auto _ : data)
-        lua_pushnil(L);
+    for (auto value : data)
+        lua_pushnumber(L, value);
 
     return (int)data.size();
 }
 
-int Wrap_Sensor::GetName(lua_State* L)
+int Wrap_Sensor::getName(lua_State* L)
 {
-    auto type = Wrap_Sensor::CheckSensorType(L, 1);
-    std::string_view name;
+    auto type             = luax_checksensortype(L, 1);
+    std::string_view name = "";
 
-    luax::CatchException(L, [&]() { name = instance()->GetSensorName(type); });
+    luax_catchexcept(L, [&] { name = instance()->getSensorName(type); });
 
-    luax::PushString(L, name);
+    luax_pushstring(L, name);
 
     return 1;
 }
@@ -71,29 +69,28 @@ int Wrap_Sensor::GetName(lua_State* L)
 // clang-format off
 static constexpr luaL_Reg functions[] =
 {
-    { "getData",    Wrap_Sensor::GetData    },
-    { "getName",    Wrap_Sensor::GetName    },
-    { "hasSensor",  Wrap_Sensor::HasSensor  },
-    { "isEnabled",  Wrap_Sensor::IsEnabled  },
-    { "setEnabled", Wrap_Sensor::SetEnabled }
+    { "hasSensor",  Wrap_Sensor::hasSensor  },
+    { "isEnabled",  Wrap_Sensor::isEnabled  },
+    { "setEnabled", Wrap_Sensor::setEnabled },
+    { "getData",    Wrap_Sensor::getData    },
+    { "getName",    Wrap_Sensor::getName    }
 };
 // clang-format on
 
-int Wrap_Sensor::Register(lua_State* L)
+int Wrap_Sensor::open(lua_State* L)
 {
     auto* instance = instance();
 
     if (instance == nullptr)
-        luax::CatchException(L, [&]() { instance = new Sensor(); });
+        luax_catchexcept(L, [&] { instance = new Sensor(); });
     else
-        instance()->Retain();
+        instance->retain();
 
-    WrappedModule wrappedModule {};
-    wrappedModule.instance  = instance;
-    wrappedModule.name      = "sensor";
-    wrappedModule.type      = &Module::type;
-    wrappedModule.functions = functions;
-    wrappedModule.types     = nullptr;
+    WrappedModule module {};
+    module.instance  = instance;
+    module.name      = "sensor";
+    module.type      = &Module::type;
+    module.functions = functions;
 
-    return luax::RegisterModule(L, wrappedModule);
+    return luax_register_module(L, module);
 }

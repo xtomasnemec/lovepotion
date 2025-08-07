@@ -3,7 +3,7 @@ R"luastring"--(
 -- There is a matching delimiter at the bottom of the file.
 
 --[[
-Copyright (c) 2006-2021 LOVE Development Team
+Copyright (c) 2006-2024 LOVE De        -- Pump events
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -22,176 +22,130 @@ freely, subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 --]]
 
-local love = require("love")
-
-function love.createhandlers()
+local love = require("love")function love.createhandlers()
     -- Standard callback handlers.
     love.handlers = setmetatable({
-        --#region unused
-        -- keypressed = function(button, scancode, isRepeat)
-        --     if love.keypressed then
-        --         return love.keypressed(button, scancode, isRepeat)
-        --     end
-        -- end,
-        -- keyreleased = function(button, scancode)
-        --     if love.keyreleased then
-        --         return love.keyreleased(button, scancode)
-        --     end
-        -- end,
-        --#endregion
-        textinput = function(text)
-            if love.textinput then
-                return love.textinput(text)
-            end
+        keypressed = function(b, s, r)
+            if love.keypressed then return love.keypressed(b, s, r) end
         end,
-        --#region unused
-        -- textedited = function(text, start, length)
-        --     if love.textedited then
-        --         return love.textedited(text, start, length)
-        --     end
-        -- end,
-        -- mousemoved = function(x, y, dx, dy, isTouch)
-        --     if love.mousemoved then
-        --         return love.mousemoved(x, y, dx, dy, isTouch)
-        --     end
-        -- end,
-        -- mousepressed = function(x, y, button, isTouch, presses)
-        --     if love.mousepressed then
-        --         return love.mousepressed(x, y, button, isTouch, presses)
-        --     end
-        -- end,
-        -- mousereleased = function(x, y, button, isTouch, presses)
-        --     if love.mousereleased then
-        --         return love.mousereleased(x, y, button, isTouch, presses)
-        --     end
-        -- end,
-        -- wheelmoved = function(x, y)
-        --     if love.wheelmoved then
-        --         return love.wheelmoved(x, y)
-        --     end
-        -- end,
-        --#endregion
-        touchpressed = function(id, x, y, dx, dy, pressure)
-            if love.touchpressed then
-                return love.touchpressed(id, x, y, dx, dy, pressure)
-            end
+        keyreleased = function(b, s)
+            if love.keyreleased then return love.keyreleased(b, s) end
         end,
-        touchreleased = function(id, x, y, dx, dy, pressure)
-            if love.touchreleased then
-                return love.touchreleased(id, x, y, dx, dy, pressure)
-            end
+        textinput = function(t)
+            if love.textinput then return love.textinput(t) end
         end,
-        touchmoved = function(id, x, y, dx, dy, pressure)
-            if love.touchmoved then
-                return love.touchmoved(id, x, y, dx, dy, pressure)
-            end
+        textedited = function(t, s, l)
+            if love.textedited then return love.textedited(t, s, l) end
         end,
-        joystickpressed = function(joystick, button)
-            if love.joystickpressed then
-                return love.joystickpressed(joystick, button)
-            end
+        mousemoved = function(x, y, dx, dy, t)
+            if love.mousemoved then return love.mousemoved(x, y, dx, dy, t) end
         end,
-        joystickreleased = function(joystick, button)
-            if love.joystickreleased then
-                return love.joystickreleased(joystick, button)
-            end
+        mousepressed = function(x, y, b, t, c)
+            if love.mousepressed then return love.mousepressed(x, y, b, t, c) end
         end,
-        joystickaxis = function(joystick, axis, value)
-            if love.joystickaxis then
-                return love.joystickaxis(joystick, axis, value)
-            end
+        mousereleased = function(x, y, b, t, c)
+            if love.mousereleased then return love.mousereleased(x, y, b, t, c) end
         end,
-        joysticksensorupdated = function(joystick, sensor, ...)
-            if love.joysticksensorupdated then
-                return love.joysticksensorupdated(joystick, sensor, ...)
-            end
+        wheelmoved = function(x, y, px, py, dir)
+            if love.wheelmoved then return love.wheelmoved(x, y, px, py, dir) end
         end,
-        --#region unused
-        -- joystickhat = function(joystick, hat, value)
-        --     if love.joystickhat then
-        --         return love.joystickhat(joystick, hat, value)
-        --     end
-        -- end,
-        --#endregion unused
-        gamepadpressed = function(joystick, button)
-            if love.gamepadpressed then
-                return love.gamepadpressed(joystick, button)
-            end
+        touchpressed = function(id, x, y, dx, dy, p, t, m)
+            if love.touchpressed then return love.touchpressed(id, x, y, dx, dy, p, t, m) end
         end,
-        gamepadreleased = function(joystick, button)
-            if love.gamepadreleased then
-                return love.gamepadreleased(joystick, button)
-            end
+        touchreleased = function(id, x, y, dx, dy, p, t, m)
+            if love.touchreleased then return love.touchreleased(id, x, y, dx, dy, p, t, m) end
         end,
-        gamepadaxis = function(joystick, axis, value)
-            if love.gamepadaxis then
-                return love.gamepadaxis(joystick, axis, value)
-            end
+        touchmoved = function(id, x, y, dx, dy, p, t, m)
+            if love.touchmoved then return love.touchmoved(id, x, y, dx, dy, p, t, m) end
         end,
-        joystickadded = function(joystick)
-            if love.joystickadded then
-                return love.joystickadded(joystick)
-            end
+        joystickpressed = function(j, b)
+            if love.joystickpressed then return love.joystickpressed(j, b) end
         end,
-        joystickremoved = function(joystick)
-            if love.joystickremoved then
-                return love.joystickremoved(joystick)
-            end
+        joystickreleased = function(j, b)
+            if love.joystickreleased then return love.joystickreleased(j, b) end
         end,
-        focus = function(focused)
-            if love.focus then
-                return love.focus(focused)
-            end
+        joystickaxis = function(j, a, v)
+            if love.joystickaxis then return love.joystickaxis(j, a, v) end
         end,
-        --#region unused
-        -- mousefocus = function(mouseFocused)
-        --     if love.mousefocus then
-        --         return love.mousefocus(mouseFocused)
-        --     end
-        -- end,
-        --#endregion unused
-        visible = function(visible)
-            if love.visible then
-                return love.visible(visible)
-            end
+        joystickhat = function(j, h, v)
+            if love.joystickhat then return love.joystickhat(j, h, v) end
+        end,
+        gamepadpressed = function(j, b)
+            if love.gamepadpressed then return love.gamepadpressed(j, b) end
+        end,
+        gamepadreleased = function(j, b)
+            if love.gamepadreleased then return love.gamepadreleased(j, b) end
+        end,
+        gamepadaxis = function(j, a, v)
+            if love.gamepadaxis then return love.gamepadaxis(j, a, v) end
+        end,
+        joystickadded = function(j)
+            if love.joystickadded then return love.joystickadded(j) end
+        end,
+        joystickremoved = function(j)
+            if love.joystickremoved then return love.joystickremoved(j) end
+        end,
+        joysticksensorupdated = function(j, sensorType, x, y, z)
+            if love.joysticksensorupdated then return love.joysticksensorupdated(j, sensorType, x, y, z) end
+        end,
+        focus = function(f)
+            if love.focus then return love.focus(f) end
+        end,
+        mousefocus = function(f)
+            if love.mousefocus then return love.mousefocus(f) end
+        end,
+        visible = function(v)
+            if love.visible then return love.visible(v) end
+        end,
+        exposed = function()
+            if love.exposed then return love.exposed() end
+        end,
+        occluded = function()
+            if love.occluded then return love.occluded() end
         end,
         quit = function()
             return
         end,
-        threaderror = function(thread, error)
-            if love.threaderror then
-                return love.threaderror(thread, error)
-            end
+        threaderror = function(t, err)
+            if love.threaderror then return love.threaderror(t, err) end
         end,
-        resize = function(width, height)
-            if love.resize then
-                return love.resize(width, height)
-            end
+        resize = function(w, h)
+            if love.resize then return love.resize(w, h) end
         end,
-        --#region unused
-        -- filedropped = function(file)
-        --     if love.filedropped then
-        --         return love.filedropped(file)
-        --     end
-        -- end,
-        -- directorydropped = function(directory)
-        --     if love.directorydropped then
-        --         return love.directorydropped(directory)
-        --     end
-        -- end,
-        --#endregion unused
+        filedropped = function(f, x, y)
+            if love.filedropped then return love.filedropped(f, x, y) end
+        end,
+        directorydropped = function(dir, x, y)
+            if love.directorydropped then return love.directorydropped(dir, x, y) end
+        end,
+        dropbegan = function()
+            if love.dropbegan then return love.dropbegan() end
+        end,
+        dropmoved = function(x, y)
+            if love.dropmoved then return love.dropmoved(x, y) end
+        end,
+        dropcompleted = function(x, y)
+            if love.dropcompleted then return love.dropcompleted(x, y) end
+        end,
         lowmemory = function()
-            if love.lowmemory then
-                love.lowmemory()
-            end
+            if love.lowmemory then love.lowmemory() end
             collectgarbage()
             collectgarbage()
         end,
-        -- displayrotated = function(display, orient)
-        --     if love.displayrotated then
-        --         return love.displayrotated(display, orient)
-        --     end
-        -- end,
+        displayrotated = function(display, orient)
+            if love.displayrotated then return love.displayrotated(display, orient) end
+        end,
+        localechanged = function()
+            if love.localechanged then return love.localechanged() end
+        end,
+        audiodisconnected = function(sources)
+            if not love.audiodisconnected or not love.audiodisconnected(sources) then
+                love.audio.setPlaybackDevice()
+            end
+        end,
+        sensorupdated = function(sensorType, x, y, z)
+            if love.sensorupdated then return love.sensorupdated(sensorType, x, y, z) end
+        end,
     }, {
         __index = function(self, name)
             error("Unknown event: " .. name)
@@ -203,120 +157,286 @@ end
 -- Default callbacks.
 -----------------------------------------------------------
 
--- we need to fix some bugs/inconsistencies on Wii U
-local is_wii_u = love._os == "Cafe"
+---Gets the stereoscopic 3D value of the 3D slide on Nintendo 3DS
+---@param screen string The current screen
+---@return number | nil depth The stereoscopic 3D value (0.0 - 1.0)
+local function get_stereoscopic_depth(screen)
+    if love._console ~= "3DS" then return end
+    local depth = love.graphics.getDepth()
+    return screen ~= "bottom" and (screen == "left" and depth or -depth) or 0
+end
 
--- Checks if `love.draw("gamepad")` should fire
--- This happens only when the software keyboard is shown
--- For some reason the software keyboard has some kind of depth testing enabled
-local function shouldDraw(screen)
-    if not is_wii_u then
-        return true
-    end
-
-    -- when gamepad and keyboard shown, do not draw
-    if screen == "gamepad" and love.keyboard.hasTextInput() then
-        return false
-    end
-    -- when tv, always draw
-    return true
+-- Helper function for stereoscopic depth (missing in original)
+local function get_stereoscopic_depth(display_name)
+    -- For now, return 0 depth for all displays
+    -- This can be enhanced later for 3D displays
+    return 0
 end
 
 function love.run()
-    if love.load then
-        love.load(love.parsedGameArguments, love.rawGameArguments)
+    print("DEBUG: love.run() starting...")
+    
+    if love.load then 
+        print("DEBUG: Calling love.load()...")
+        love.load(love.parsedGameArguments, love.rawGameArguments) 
+        print("DEBUG: love.load() completed")
     end
 
-    -- https://love2d.org/wiki/love.joystickadded
-    -- This callback is also triggered after love.load for every Joystick which was already connected when the game started up. 
-    for _, j in ipairs(love.joystick.getJoysticks()) do
-        love.handlers.joystickadded(j)
-    end
+    -- We don't want the first frame's dt to include time taken by love.load.
+    if love.timer then love.timer.step() end
 
-    if love.timer then
-        love.timer.step()
-    end
-
-    local delta = 0
-
+    print("DEBUG: Starting main loop function...")
+    
+    -- Test error trigger counter for runtime testing
+    local frame_count = 0
+    local test_error_triggered = false
+    
+    -- Main loop time.
     return function()
-        if love.window and g_windowShown then
-            return
-        end
-
-        if love.event and love.event.pump then
+        -- Process events.
+        if love.event then
+            print("DEBUG: About to pump events (frame " .. frame_count .. ")")
             love.event.pump()
-
-            for name, a, b, c, d, e, f in love.event.poll() do
+            print("DEBUG: Event pump completed, about to poll events")
+            for name, a, b, c, d, e, f, g, h in love.event.poll() do
+                print("DEBUG: Got event: " .. tostring(name))
                 if name == "quit" then
                     if not love.quit or not love.quit() then
-                        love.audio.stop()
-                        return a or 0
+                        return a or 0, b
                     end
                 end
-                love.handlers[name](a, b, c, d, e, f)
+                love.handlers[name](a, b, c, d, e, f, g, h)
             end
+            print("DEBUG: Event polling completed")
         end
 
-        if love.timer then
-            delta = love.timer.step()
+        -- Update dt, as we'll be passing it to update
+        local dt = love.timer and love.timer.step() or 0
+        
+        -- Frame counter for debugging
+        frame_count = frame_count + 1
+        print("DEBUG: Starting frame " .. frame_count .. " with dt=" .. tostring(dt))
+        if frame_count == 10 or frame_count == 30 or frame_count == 50 then
+            print("Frame counter: " .. frame_count .. " (console: " .. tostring(love._console_name) .. ")")
         end
 
-        if love.update then
-            love.update(delta)
-        end
+        -- Call update and draw
+        print("DEBUG: About to call love.update()")
+        if love.update then love.update(dt) end -- will pass 0 if love.timer is disabled
+        print("DEBUG: love.update() completed")
 
         if love.graphics and love.graphics.isActive() then
-            local screens = love.graphics.getScreens()
+            print("DEBUG: About to start graphics rendering")
+            local display_count = love.window.getDisplayCount()
+            for display_index = 1, display_count do
+                local display_name = love.window.getDisplayName(display_index)
+                love.graphics.setActiveScreen(display_name)
 
-            for _, screen in ipairs(screens) do
                 love.graphics.origin()
 
-                love.graphics.setActiveScreen(screen)
                 love.graphics.clear(love.graphics.getBackgroundColor())
+                local stereoscopic_depth = get_stereoscopic_depth(display_name)
 
-                if love.draw and shouldDraw(screen) then
-                    love.draw(screen)
-                end
+                if love.draw then love.draw(display_name, stereoscopic_depth) end
+                love.graphics.copyCurrentScanBuffer()
             end
-
+            print("DEBUG: About to present graphics")
             love.graphics.present()
+            print("DEBUG: Graphics present completed")
         end
-
-        if love.timer then
-            love.timer.sleep(0.001)
-        end
+        print("DEBUG: About to sleep")
+        if love.timer then love.timer.sleep(0.001) end
+        print("DEBUG: Sleep completed, frame " .. frame_count .. " finished")
     end
 end
 
 local debug, print, tostring, error = debug, print, tostring, error
 
 function love.threaderror(t, err)
-    if is_debug then
-        file:echo("Thread error (" .. tostring(t) .. ")\n\n" .. err)
-    end
     error("Thread error (" .. tostring(t) .. ")\n\n" .. err, 0)
 end
 
 local utf8 = require("utf8")
 
 local function error_printer(msg, layer)
-    print(debug.traceback("Error: " .. tostring(msg), 1 + (layer or 1)):gsub("\n[^\n]+$", ""))
+    -- Get the full traceback immediately
+    local trace = debug.traceback("Error: " .. tostring(msg), 1 + (layer or 1))
+    
+    -- Add Wii U specific logging for error_printer
+    if love._console_name == "cafe" then
+        local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+        if logFile then
+            logFile:write("=== ERROR_PRINTER DETAILED LOG ===\n")
+            logFile:write("Raw message: " .. tostring(msg) .. "\n")
+            logFile:write("Layer: " .. tostring(layer) .. "\n")
+            logFile:write("Full trace with context:\n" .. tostring(trace) .. "\n")
+            logFile:write("================================\n")
+            logFile:flush()
+            logFile:close()
+        end
+    end
+    
+    -- Print to console (this may or may not work depending on system state)
+    print(trace:gsub("\n[^\n]+$", ""))
+    
+    if love._console_name == "cafe" then
+        local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+        if logFile then
+            logFile:write("error_printer print() call completed\n")
+            logFile:flush()
+            logFile:close()
+        end
+    end
 end
 
 function love.errhand(msg)
     msg = tostring(msg)
 
+    -- PRIORITY: Immediately log the full error to file before doing ANYTHING else
+    -- Multiple fallback attempts to ensure the error gets logged somewhere
+    local logged = false
+    
+    if love._console_name == "cafe" then
+        -- Try primary log location
+        local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+        if logFile then
+            logFile:write("\n" .. string.rep("=", 80) .. "\n")
+            logFile:write("CRITICAL ERROR DETECTED AT " .. tostring(os.date()) .. "\n")
+            logFile:write(string.rep("=", 80) .. "\n")
+            logFile:write("ERROR MESSAGE:\n" .. tostring(msg) .. "\n")
+            logFile:write(string.rep("-", 40) .. "\n")
+            
+            -- Get and log the full traceback immediately
+            local trace = debug.traceback()
+            logFile:write("FULL TRACEBACK:\n" .. tostring(trace) .. "\n")
+            logFile:write(string.rep("-", 40) .. "\n")
+            
+            -- Log system state
+            logFile:write("SYSTEM STATE:\n")
+            logFile:write("- Window exists: " .. tostring(love.window ~= nil) .. "\n")
+            logFile:write("- Graphics exists: " .. tostring(love.graphics ~= nil) .. "\n")
+            logFile:write("- Event exists: " .. tostring(love.event ~= nil) .. "\n")
+            
+            if love.window then
+                logFile:write("- Window open: " .. tostring(love.window.isOpen()) .. "\n")
+            end
+            if love.graphics then
+                logFile:write("- Graphics created: " .. tostring(love.graphics.isCreated()) .. "\n")
+                logFile:write("- Graphics active: " .. tostring(love.graphics.isActive()) .. "\n")
+            end
+            
+            logFile:write(string.rep("=", 80) .. "\n\n")
+            logFile:flush()
+            logFile:close()
+            logged = true
+        end
+        
+        -- If primary logging failed, try backup location
+        if not logged then
+            local backupLog = io.open("fs:/vol/save/error_backup.log", "a") 
+            if backupLog then
+                backupLog:write("BACKUP ERROR LOG - PRIMARY FAILED\n")
+                backupLog:write("Error: " .. tostring(msg) .. "\n")
+                backupLog:write("Trace: " .. tostring(debug.traceback()) .. "\n")
+                backupLog:flush()
+                backupLog:close()
+                logged = true
+            end
+        end
+        
+        -- If file logging completely failed, at least try to print to console
+        if not logged then
+            print("CRITICAL ERROR LOGGING FAILED")
+            print("Error: " .. tostring(msg))
+            print("Trace: " .. tostring(debug.traceback()))
+        end
+    end
+
     error_printer(msg, 2)
 
+    if love._console_name == "cafe" then
+        local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+        if logFile then
+            logFile:write("error_printer() completed\n")
+            logFile:write("Checking modules: window=" .. tostring(love.window ~= nil) .. 
+                         ", graphics=" .. tostring(love.graphics ~= nil) .. 
+                         ", event=" .. tostring(love.event ~= nil) .. "\n")
+            logFile:flush()
+            logFile:close()
+        end
+    end
+
     if not love.window or not love.graphics or not love.event then
+        if love._console_name == "cafe" then
+            local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+            if logFile then
+                logFile:write("CRITICAL: Essential modules missing - cannot display error screen\n")
+                logFile:write("Window: " .. tostring(love.window ~= nil) .. "\n")
+                logFile:write("Graphics: " .. tostring(love.graphics ~= nil) .. "\n") 
+                logFile:write("Event: " .. tostring(love.event ~= nil) .. "\n")
+                logFile:write("Error handling will terminate here, but error is logged above.\n")
+                logFile:flush()
+                logFile:close()
+            end
+        end
         return
     end
 
+    -- Wrap the entire graphics error display in a protected call
+    local success, errorScreenFunction = pcall(function()
+        return love.errhand_create_error_screen(msg)
+    end)
+    
+    if success and errorScreenFunction then
+        return errorScreenFunction
+    else
+        -- Graphics error display failed, log this and return
+        if love._console_name == "cafe" then
+            local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+            if logFile then
+                logFile:write("CRITICAL: Error screen creation failed\n")
+                logFile:write("Failure reason: " .. tostring(errorScreenFunction or "unknown") .. "\n")
+                logFile:write("Error handling will terminate, but full error is logged above.\n")
+                logFile:flush()
+                logFile:close()
+            end
+        end
+        return
+    end
+end
+
+function love.errhand_create_error_screen(msg)
+
     if not love.graphics.isCreated() or not love.window.isOpen() then
+        if love._console_name == "cafe" then
+            local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+            if logFile then
+                logFile:write("Graphics not created or window not open, trying to set mode\n")
+                logFile:flush()
+                logFile:close()
+            end
+        end
+        
         local success, status = pcall(love.window.setMode, 800, 600)
         if not success or not status then
+            if love._console_name == "cafe" then
+                local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+                if logFile then
+                    logFile:write("EARLY RETURN: Failed to set window mode\n")
+                    logFile:flush()
+                    logFile:close()
+                end
+            end
             return
+        end
+    end
+
+    if love._console_name == "cafe" then
+        local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+        if logFile then
+            logFile:write("About to reset graphics and continue with error display\n")
+            logFile:flush()
+            logFile:close()
         end
     end
 
@@ -329,20 +449,30 @@ function love.errhand(msg)
             love.mouse.setCursor()
         end
     end
-
     if love.joystick then
         -- Stop all joystick vibrations.
         for i, v in ipairs(love.joystick.getJoysticks()) do
             v:setVibration()
         end
     end
-
-    if love.audio then
-        love.audio.stop()
-    end
+    if love.audio then love.audio.stop() end
 
     love.graphics.reset()
-    local font = love.graphics.newFont(14)
+    
+    -- Use larger font for Wii U since it's displayed on TV and needs to be readable
+    local font_size = 15
+    if love._console_name == "cafe" then
+        font_size = 32  -- Much larger for TV display
+        
+        local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+        if logFile then
+            logFile:write("Using larger font size for Wii U: " .. font_size .. "\n")
+            logFile:flush()
+            logFile:close()
+        end
+    end
+    
+    love.graphics.setFont(love.graphics.newFont(font_size))
 
     love.graphics.setColor(1, 1, 1)
 
@@ -354,14 +484,14 @@ function love.errhand(msg)
     for char in msg:gmatch(utf8.charpattern) do
         table.insert(sanitizedmsg, char)
     end
-    sanitizedmsg = table.concat(sanitizedmsg)
+    local sanitizedmsg_str = table.concat(sanitizedmsg)
 
     local err = {}
 
     table.insert(err, "Error\n")
-    table.insert(err, sanitizedmsg)
+    table.insert(err, sanitizedmsg_str)
 
-    if #sanitizedmsg ~= #msg then
+    if #sanitizedmsg_str ~= #msg then
         table.insert(err, "Invalid UTF-8 string in error message.")
     end
 
@@ -379,62 +509,66 @@ function love.errhand(msg)
     p = p:gsub("\t", "")
     p = p:gsub("%[string \"(.-)\"%]", "%1")
 
-    local screens = love.graphics.getScreens()
-
-    local _, text = font:getWrap(p, love.graphics.getWidth() - 20)
-
-    if #text > 14 then
-        for index = 15, #text do
-            text[index] = nil
-        end
-    end
-
-    table.insert(text, "")
-
-    local not_saved_message = "Press Start to quit or A save this error."
-    local saved_message = "Error saved. Press Start to quit."
-
-    table.insert(text, not_saved_message)
-
     local function draw()
-        if not love.graphics.isActive() then
-            return
-        end
-
-        for _, screen in ipairs(screens) do
-            love.graphics.origin()
-
-            love.graphics.setActiveScreen(screen)
-            love.graphics.clear(0.35, 0.62, 0.86)
-
-            if screen ~= "bottom" then
-                for index = 1, #text do
-                    love.graphics.print(text[index], font, 5, (index - 1) * 16)
-                end
+        if love._console_name == "cafe" then
+            local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+            if logFile then
+                logFile:write("=== ERROR SCREEN DRAW() CALLED ===\n")
+                logFile:write("Graphics active: " .. tostring(love.graphics.isActive()) .. "\n")
+                logFile:flush()
+                logFile:close()
             end
         end
-
+        
+        if not love.graphics.isActive() then 
+            if love._console_name == "cafe" then
+                local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+                if logFile then
+                    logFile:write("EARLY RETURN: Graphics not active\n")
+                    logFile:flush()
+                    logFile:close()
+                end
+            end
+            return 
+        end
+        
+        local pos = 70
+        
+        if love._console_name == "cafe" then
+            local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+            if logFile then
+                logFile:write("About to draw blue error screen\n")
+                logFile:write("Error text length: " .. string.len(p) .. "\n")
+                logFile:write("Error text preview: " .. string.sub(p, 1, 100) .. "\n")
+                logFile:write("Screen dimensions: " .. love.graphics.getWidth() .. "x" .. love.graphics.getHeight() .. "\n")
+                logFile:flush()
+                logFile:close()
+            end
+        end
+        
+        love.graphics.clear(89 / 255, 157 / 255, 220 / 255)
+        love.graphics.printf(p, pos, pos, love.graphics.getWidth() - pos)
         love.graphics.present()
+        
+        if love._console_name == "cafe" then
+            local logFile = io.open("fs:/vol/external01/simple_debug.log", "a")
+            if logFile then
+                logFile:write("Blue error screen draw completed\n")
+                logFile:flush()
+                logFile:close()
+            end
+        end
     end
 
-    local fullErrorText, savedMessage = p, false
-    local function saveErrorToFile()
-        if savedMessage then
-            return
-        end
+    local fullErrorText = p
+    local function copyToClipboard()
+        if not love.system then return end
+        love.system.setClipboardText(fullErrorText)
+        p = p .. "\nCopied to clipboard!"
+    end
 
-        local date = os.date("%H%M%S_%m%d%y")
-        local filename = string.format("errors/love_error_%s.txt", date)
-
-        if not love.filesystem then
-            return
-        end
-
-        love.filesystem.createDirectory("errors")
-        love.filesystem.write(filename, fullErrorText)
-
-        text[#text] = saved_message
-        savedMessage = true
+    if love.system then
+        p = p .. "\n\nPress Ctrl+C or tap to copy this error"
     end
 
     return function()
@@ -443,23 +577,22 @@ function love.errhand(msg)
         for e, a, b, c in love.event.poll() do
             if e == "quit" then
                 return 1
-            elseif e == "gamepadpressed" and b == "start" then
+            elseif e == "keypressed" and a == "escape" then
                 return 1
-            elseif e == "gamepadpressed" and b == "a" then
-                saveErrorToFile()
+            elseif e == "keypressed" and a == "c" and love.keyboard.isDown("lctrl", "rctrl") then
+                copyToClipboard()
             elseif e == "touchpressed" then
-                local name = love.filesystem.getIdentity()
-
-                if #name == 0 or name == "Untitled" then
-                    name = "Game"
-                end
-
+                local name = love.window.getTitle()
+                if #name == 0 or name == "Untitled" then name = "Game" end
                 local buttons = { "OK", "Cancel" }
-
+                if love.system then
+                    buttons[3] = "Copy to clipboard"
+                end
                 local pressed = love.window.showMessageBox("Quit " .. name .. "?", "", buttons)
-
                 if pressed == 1 then
                     return 1
+                elseif pressed == 3 then
+                    copyToClipboard()
                 end
             end
         end
