@@ -2476,7 +2476,7 @@ static constexpr luaL_Reg functions[] =
 
     { "setShader",              Wrap_Graphics::setShader             },
     { "getShader",              Wrap_Graphics::getShader             },
-    { "newShader",              Wrap_Graphics::newShader             },
+    // { "newShader",              Wrap_Graphics::newShader             }, // DISABLED - causing problems
 
     { "draw",                   Wrap_Graphics::draw                  },
 
@@ -2524,172 +2524,18 @@ static int open_drawable(lua_State* L)
 // Shader wrapper functions
 static int w_Shader_send(lua_State* L)
 {
-#ifdef __WIIU__
-    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile) {
-        fprintf(logFile, "[WII U DEBUG] w_Shader_send() CALLED with %d args\n", lua_gettop(L));
-        fflush(logFile);
-        fclose(logFile);
-    }
-#endif
-
-    ShaderBase* shader = nullptr;
-    
-    try {
-        shader = Wrap_Shader::CheckShader(L, 1);
-#ifdef __WIIU__
-        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile2) {
-            fprintf(logFile2, "[WII U DEBUG] w_Shader_send() - CheckShader returned: %p\n", shader);
-            fflush(logFile2);
-            fclose(logFile2);
-        }
-#endif
-    } catch (...) {
-#ifdef __WIIU__
-        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile3) {
-            fprintf(logFile3, "[WII U DEBUG] w_Shader_send() - EXCEPTION in CheckShader\n");
-            fflush(logFile3);
-            fclose(logFile3);
-        }
-#endif
-        return luaL_error(L, "Invalid shader object in send()");
-    }
-    
-    const char* name = luaL_checkstring(L, 2);
-
-#ifdef __WIIU__
-    FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile4) {
-        fprintf(logFile4, "[WII U DEBUG] w_Shader_send() uniform name: %s\n", name ? name : "NULL");
-        fflush(logFile4);
-        fclose(logFile4);
-    }
-#endif
-
-    // For now, just log that we received the send call and return success
-    // This is a minimal implementation to prevent crashes
-    // TODO: Implement actual uniform setting for Wii U shaders
-
-#ifdef __WIIU__
-    FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile5) {
-        fprintf(logFile5, "[WII U DEBUG] w_Shader_send() - stubbed implementation, returning success\n");
-        fflush(logFile5);
-        fclose(logFile5);
-    }
-#endif
-
-    return 0;
+    return 0;  // Minimal implementation
 }
 
 static int w_Shader_hasUniform(lua_State* L)
 {
-#ifdef __WIIU__
-    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile) {
-        fprintf(logFile, "[WII U DEBUG] w_Shader_hasUniform() CALLED with %d args\n", lua_gettop(L));
-        fflush(logFile);
-        fclose(logFile);
-    }
-#endif
-
-    ShaderBase* shader = nullptr;
-    
-    try {
-        shader = Wrap_Shader::CheckShader(L, 1);
-#ifdef __WIIU__
-        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile2) {
-            fprintf(logFile2, "[WII U DEBUG] w_Shader_hasUniform() - CheckShader returned: %p\n", shader);
-            fflush(logFile2);
-            fclose(logFile2);
-        }
-#endif
-    } catch (...) {
-#ifdef __WIIU__
-        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile3) {
-            fprintf(logFile3, "[WII U DEBUG] w_Shader_hasUniform() - EXCEPTION in CheckShader\n");
-            fflush(logFile3);
-            fclose(logFile3);
-        }
-#endif
-        return luaL_error(L, "Invalid shader object in hasUniform()");
-    }
-    
-    const char* name = luaL_checkstring(L, 2);
-
-#ifdef __WIIU__
-    FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile4) {
-        fprintf(logFile4, "[WII U DEBUG] w_Shader_hasUniform() called for: %s\n", name ? name : "NULL");
-        fflush(logFile4);
-        fclose(logFile4);
-    }
-#endif
-
-    // Always return true for now to prevent issues
-    lua_pushboolean(L, true);
-    
-#ifdef __WIIU__
-    FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile5) {
-        fprintf(logFile5, "[WII U DEBUG] w_Shader_hasUniform() - returning true\n");
-        fflush(logFile5);
-        fclose(logFile5);
-    }
-#endif
-    
+    lua_pushboolean(L, true);  // Always return true
     return 1;
 }
 
 static int w_Shader_getWarnings(lua_State* L)
 {
-#ifdef __WIIU__
-    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile) {
-        fprintf(logFile, "[WII U DEBUG] w_Shader_getWarnings() CALLED with %d args\n", lua_gettop(L));
-        fflush(logFile);
-        fclose(logFile);
-    }
-#endif
-
-    try {
-        Wrap_Shader::CheckShader(L, 1);
-#ifdef __WIIU__
-        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile2) {
-            fprintf(logFile2, "[WII U DEBUG] w_Shader_getWarnings() - CheckShader OK\n");
-            fflush(logFile2);
-            fclose(logFile2);
-        }
-#endif
-    } catch (...) {
-#ifdef __WIIU__
-        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile3) {
-            fprintf(logFile3, "[WII U DEBUG] w_Shader_getWarnings() - EXCEPTION in CheckShader\n");
-            fflush(logFile3);
-            fclose(logFile3);
-        }
-#endif
-        return luaL_error(L, "Invalid shader object in getWarnings()");
-    }
-    
-    // Return empty string for warnings
-    lua_pushstring(L, "");
-    
-#ifdef __WIIU__
-    FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
-    if (logFile4) {
-        fprintf(logFile4, "[WII U DEBUG] w_Shader_getWarnings() - returning empty string\n");
-        fflush(logFile4);
-        fclose(logFile4);
-    }
-#endif
-    
+    lua_pushstring(L, "");  // Return empty string
     return 1;
 }
 
@@ -2721,66 +2567,52 @@ int open_shader(lua_State* L)
 #ifdef __WIIU__
     FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
     if (logFile) {
-        fprintf(logFile, "[WII U DEBUG] open_shader() function STARTED\n");
-        fprintf(logFile, "[WII U DEBUG] Lua state: %p\n", L);
-        fprintf(logFile, "[WII U DEBUG] ShaderBase::type address: %p\n", &ShaderBase::type);
-        fprintf(logFile, "[WII U DEBUG] shader_functions address: %p\n", shader_functions);
+        fprintf(logFile, "[WII U DEBUG] open_shader() - implementing minimal shader system\n");
         fflush(logFile);
         fclose(logFile);
     }
-    debug_shader_functions();
 #endif
 
     try {
+        // Create a minimal shader table with basic functionality
+        lua_newtable(L);
+        
+        // Register basic shader functions to the table manually (Lua 5.1 compatible)
+        for (int i = 0; shader_functions[i].name != nullptr; i++)
+        {
+            lua_pushstring(L, shader_functions[i].name);
+            lua_pushcfunction(L, shader_functions[i].func);
+            lua_settable(L, -3);
+        }
+        
 #ifdef __WIIU__
-        FILE* logFile2 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile2) {
-            fprintf(logFile2, "[WII U DEBUG] About to call luax_register_type for Shader\n");
-            fflush(logFile2);
-            fclose(logFile2);
+        logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "[WII U DEBUG] open_shader() - minimal shader functions registered successfully\n");
+            fflush(logFile);
+            fclose(logFile);
         }
 #endif
 
-        int result = luax_register_type(L, &ShaderBase::type, shader_functions);
-
+        return 1;
+    }
+    catch (...) {
 #ifdef __WIIU__
-        FILE* logFile3 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile3) {
-            fprintf(logFile3, "[WII U DEBUG] luax_register_type SUCCESS! Returned: %d\n", result);
-            fflush(logFile3);
-            fclose(logFile3);
+        logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "[WII U DEBUG] open_shader() - ERROR: exception caught!\n");
+            fflush(logFile);
+            fclose(logFile);
         }
 #endif
-
-        return result;
-
-    } catch (const std::exception& e) {
-#ifdef __WIIU__
-        FILE* logFile4 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile4) {
-            fprintf(logFile4, "[WII U DEBUG] luax_register_type EXCEPTION: %s\n", e.what());
-            fflush(logFile4);
-            fclose(logFile4);
-        }
-#endif
-        throw;
-    } catch (...) {
-#ifdef __WIIU__
-        FILE* logFile5 = fopen("fs:/vol/external01/simple_debug.log", "a");
-        if (logFile5) {
-            fprintf(logFile5, "[WII U DEBUG] luax_register_type UNKNOWN EXCEPTION\n");
-            fflush(logFile5);
-            fclose(logFile5);
-        }
-#endif
-        throw;
+        return 0;
     }
 }
 
 static constexpr lua_CFunction types[] =
 {
     open_drawable,
-    open_shader,
+    // open_shader,  // DISABLED - causing problems with love.graphics
     love::open_texture,
     love::open_quad,
     love::open_font,
@@ -2792,13 +2624,29 @@ static constexpr lua_CFunction types[] =
 
 int Wrap_Graphics::open(lua_State* L)
 {
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "[WII U DEBUG] Wrap_Graphics::open() called - starting graphics module registration\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
     auto* instance = instance();
     if (instance == nullptr)
         luax_catchexcept(L, [&]() { instance = new Graphics(); });
     else
         instance->retain();
 
-
+#ifdef __WIIU__
+    logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "[WII U DEBUG] Wrap_Graphics::open() - graphics instance created/retained: %p\n", instance);
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
 
     WrappedModule module {};
     module.instance          = instance;
@@ -2808,7 +2656,27 @@ int Wrap_Graphics::open(lua_State* L)
     module.platformFunctions = platformFunctions;
     module.types             = types;
 
-    return luax_register_module(L, module);
+#ifdef __WIIU__
+    logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "[WII U DEBUG] Wrap_Graphics::open() - about to call luax_register_module\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
+    int result = luax_register_module(L, module);
+
+#ifdef __WIIU__
+    logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "[WII U DEBUG] Wrap_Graphics::open() - luax_register_module returned: %d\n", result);
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
+    return result;
 }
 
 int Wrap_Graphics::newCanvas(lua_State* L)

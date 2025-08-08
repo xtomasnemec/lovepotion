@@ -213,8 +213,36 @@ static void luax_addcompatibilityalias(lua_State* L, const char* module, const c
 
 int love_initialize(lua_State* L)
 {
+#ifdef __WIIU__
+    FILE* logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "[WII U DEBUG] love_initialize() - starting module preloading\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
+
     for (auto& module : modules)
+    {
+#ifdef __WIIU__
+        logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+        if (logFile) {
+            fprintf(logFile, "[WII U DEBUG] love_initialize() - preloading module: %s\n", module.name);
+            fflush(logFile);
+            fclose(logFile);
+        }
+#endif
         love::luax_preload(L, module.func, module.name);
+    }
+
+#ifdef __WIIU__
+    logFile = fopen("fs:/vol/external01/simple_debug.log", "a");
+    if (logFile) {
+        fprintf(logFile, "[WII U DEBUG] love_initialize() - all modules preloaded\n");
+        fflush(logFile);
+        fclose(logFile);
+    }
+#endif
 
     love::luax_insistpinnedthread(L);
     love::luax_insistglobal(L, "love");
